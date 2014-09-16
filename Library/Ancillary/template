@@ -1,0 +1,202 @@
+#!/bin/sh
+
+### template -- File template
+
+# Author: Michael Grünewald
+# Date: Sun Sep 14 23:57:54 CEST 2014
+
+# Blueprint (https://bitbucket.org/michipili/blueprint)
+# This file is part of Blueprint
+#
+# Copyright © 2014 Michael Grünewald
+#
+# This file must be used under the terms of the CeCILL-B.
+# This source file is licensed as described in the file COPYING, which
+# you should have received as part of this distribution. The terms
+# are also available at
+# http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
+
+PROGNAME='template'
+
+DATE=$(env LANG=C date)
+YEAR=$(env LANG=C date -j +%Y)
+FILETYPE=ocaml
+FILENAME='/dev/null'
+DESCRIPTION='no description'
+AUTHOR=$(git config user.name)
+PACKAGE=$(git config package.name)
+PACKAGEWWW=$(git config package.www)
+LICENCE=$(git config package.licence)
+
+template_m4()
+{
+    m4 \
+	-D __FILENAME__="${FILENAME}" \
+	-D __DESCRIPTION__="${DESCRIPTION}" \
+	-D __DATE__="${DATE}" \
+	-D __YEAR__="${YEAR}" \
+	-D __AUTHOR__="${AUTHOR}" \
+	-D __PACKAGE__="${PACKAGE}" \
+	-D __PACKAGEWWW__="${PACKAGEWWW}"
+}
+
+
+template_licence_CeCILLB()
+{
+    cat <<'EOF'
+__PACKAGE__ (__PACKAGEWWW__)
+This file is part of __PACKAGE__
+
+Copyright © __YEAR__ __AUTHOR__
+
+This file must be used under the terms of the CeCILL-B.
+This source file is licensed as described in the file COPYING, which
+you should have received as part of this distribution. The terms
+are also available at
+http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
+EOF
+}
+
+
+template_licence_GPLv3()
+{
+    cat <<'EOF'
+Copyright © __YEAR__ __AUTHOR__
+All rights reserved.
+
+This file is part of __PACKAGE__.
+
+__PACKAGE__ is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Libertine is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with __PACKAGE__.  If not, see <http://www.gnu.org/licenses/>.
+EOF
+}
+
+template_licence_blob()
+{
+    case $LICENCE in
+	CeCILLB|GPLv3)
+	    eval template_licence_${LICENCE}
+	    ;;
+	*)
+	    exit 70
+	    ;;
+    esac
+}
+
+
+template_makefile()
+{
+    cat <<'EOF'
+changecom()dnl
+changequote(,)dnl
+### __FILENAME__ -- __DESCRIPTION__
+
+# Author: __AUTHOR__
+# Date: Sun Sep 14 23:57:54 CEST 2014
+
+EOF
+
+    template_licence_blob \
+	| sed -e 's/^/# /' -e 's/  *$//'
+
+    cat <<'EOF'
+
+### End of file `__FILENAME__'
+EOF
+}
+
+
+template_ocaml()
+{
+    cat <<'EOF'
+changecom()dnl
+changequote(,)dnl
+(* __FILENAME__ -- __DESCRIPTION__
+
+Author: __AUTHOR__
+Date: Sun Sep 14 23:57:54 CEST 2014
+
+EOF
+
+    template_licence_blob \
+	| sed -e '$s/$/ *)/'
+}
+
+
+template_shell()
+{
+    template_makefile "$@"
+}
+
+
+template_prepare_makefile()
+{
+    template_makefile | template_m4 > "$FILENAME"
+}
+
+
+template_prepare_ocaml()
+{
+    local filename
+
+    filename="$FILENAME"
+    FILENAME=$(echo "$filename" | perl -pe 's/(\b\pL)/\U$1/g')
+
+    template_ocaml | template_m4 > "$filename.ml"
+    template_ocaml | template_m4 > "$filename.mli"
+}
+
+
+template_prepare_shell()
+{
+    template_shell | template_m4 > "$FILENAME"
+}
+
+template_help()
+{
+    cat <<EOF
+Usage: ${PROGNAME} [-h] [-t type] file description
+ Create a file with a template
+Options:
+ -t type
+    Choose the template to use for file generation. Valid choices are
+    ocaml, makefile or shell.
+ -h Display a cheerful help message to you.
+EOF
+}
+
+
+while getopts "ht:" OPTION; do
+    case $OPTION in
+	h)	template_help; exit 0;;
+	t)	FILETYPE="$OPTARG";;
+	*)	template_help; exit 64;;
+    esac
+done
+
+case "$FILETYPE" in
+    ocaml|makefile|shell)
+			: Fine ;;
+    *)			exit 64;;
+esac
+
+shift $(( $OPTIND - 1 ))
+
+if [ $# -ne 2 ]; then
+    exit 64;
+fi
+
+FILENAME="$1"
+DESCRIPTION="$2"
+
+eval template_prepare_$FILETYPE

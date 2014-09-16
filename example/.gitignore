@@ -1,0 +1,9 @@
+*.mps
+*.pdf
+*.log
+*.aux
+*.png
+.cookie.*
+mptextmp.mp
+mptextmp.mpx
+mpxerr.tex
