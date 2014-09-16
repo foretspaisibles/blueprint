@@ -1,0 +1,38 @@
+%%% example.tex -- Showcase for our graphics
+
+% Author: Michael Grünewald
+% Date: Sun Sep 14 23:57:54 CEST 2014
+
+% Blueprint (https://bitbucket.org/michipili/blueprint)
+% This file is part of Blueprint
+%
+% Copyright © 2014 Michael Grünewald
+%
+% This file must be used under the terms of the CeCILL-B.
+% This source file is licensed as described in the file COPYING, which
+% you should have received as part of this distribution. The terms
+% are also available at
+% http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
+
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=20mm,landscape]{geometry}
+\usepackage{mathpazo}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{array}
+\usepackage{graphicx}
+\newcommand{\demonstrate}[2]{%
+  \begin{center}
+  \includegraphics[#1]{#2}
+  \end{center}
+}
+\begin{document}
+\section{Example of a timeline graphic}
+\demonstrate{height=0.9\textheight}{example_timeline-0}
+\section{Example of a schedule graphic}
+\demonstrate{width=\textwidth}{example_schedule-0}
+\section{Example of a UML component diagram}
+\demonstrate{}{example_umlcomponent-0}
+\end{document}
+
+%%% End of file `showcase.mp'
