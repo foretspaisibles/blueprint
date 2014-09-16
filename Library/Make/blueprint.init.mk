@@ -20,5 +20,6 @@ PACKAGEDIR=	/${PACKAGE}
 PROJECTMODULE+= base
 PROJECTMODULE+=	pm
 PROJECTMODULE+=	uml
+PROJECTMODULE+=	chart
 
 ### End of file `blueprint.init.mk'

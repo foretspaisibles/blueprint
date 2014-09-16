@@ -27,5 +27,6 @@ TEXPOST("\end{document}");
 
 prologues := 3;
 outputtemplate := "%j-%c.mps";
+defaultfont := "uplr8t";
 
 %%% End of file `preamble.mp'

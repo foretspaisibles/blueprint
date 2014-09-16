@@ -1,7 +1,7 @@
-### Makefile -- Example LaTeX document
+### Makefile -- Blueprint chart
 
 # Author: Michael Grünewald
-# Date: Sun Sep 14 23:57:54 CEST 2014
+# Date: Tue Sep 16 13:33:01 CEST 2014
 
 # Blueprint (https://bitbucket.org/michipili/blueprint)
 # This file is part of Blueprint
@@ -14,20 +14,8 @@
 # are also available at
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
-DOCS=		example.tex
+MPOST=		legend.mp
 
-FIGS=		example_timeline.mp
-FIGS+=		example_schedule.mp
-FIGS+=		example_umlcomponent.mp
-FIGS+=		example_legend.mp
-
-example_legend-0.mps: times.d
-
-times.d: monadic_buffer.ml
-	ocaml ${.ALLSRC} > ${.TARGET}
-
-REALCLEANFILES+=	times.d
-
-.include "blueprint.doc.mk"
+.include "blueprint.mpost.mk"
 
 ### End of file `Makefile'
