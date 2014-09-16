@@ -15,7 +15,7 @@
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
 AC_INIT(Library/Make/blueprint.init.mk)
-AC_SUBST([version], [0.0])
+AC_SUBST([version], [0.1])
 AC_OUTPUT(Makefile.inc)
 
 ### End of file `configure.ac'
