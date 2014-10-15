@@ -22,4 +22,6 @@ PROJECTMODULE+=	pm
 PROJECTMODULE+=	uml
 PROJECTMODULE+=	chart
 
+TEXMFDIR?=	${PREFIX}/share/texmf-local
+
 ### End of file `blueprint.init.mk'

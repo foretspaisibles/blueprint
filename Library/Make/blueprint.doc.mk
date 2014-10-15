@@ -20,7 +20,6 @@
 MPINPUTS+= ${PROJECTBASE}/${module}
 .endfor
 
-TEXMFDIR?=	${PREFIX}/share/texmf-local
 TEXDOCDIR=	${TEXMFDIR}/doc/${PACKAGE}
 
 .include "latex.doc.mk"
