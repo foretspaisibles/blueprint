@@ -21,4 +21,9 @@ SUBDIR+=	example
 
 .include "bps.project.mk"
 
+do-install-mktexlsr: .IGNORE .USE
+	mktexlsr ${TEXMFDIR}
+
+install: do-install-mktexlsr
+
 ### End of file `blueprint.main.mk'
