@@ -16,7 +16,7 @@
 
 .include "blueprint.init.mk"
 
-FILESGROUPS+=	${MPOST}
+FILESGROUPS+=	MPOST
 
 TEXMFDIR?=	${PREFIX}/share/texmf-local
 MPOSTDIR=	${TEXMFDIR}/metapost/${PACKAGE}
