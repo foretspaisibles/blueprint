@@ -4,7 +4,7 @@ The Blueprint project aims at delivering a full featured library of
 high quality graphics and diagrams for *project managers* and *system
 desginers*.
 
-It is written as a library for John Hobby's [METAPOST][2], we can take
+It is written as a library for John Hobby's [METAPOST][2]. We can take
 advantage of METAPOST declarative language and macro language to
 produce high-quality and easy to maintain graphics. It can already
 be used to create these technical drawings:
