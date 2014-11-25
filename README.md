@@ -11,7 +11,7 @@ be used to create these technical drawings:
 
 - Milestones diagrams
 - Project schedules
-- UML Diagrams
+- UML component diagrams
 - Charts
 
 It is written by Michael Grünewald and is distributed under the
