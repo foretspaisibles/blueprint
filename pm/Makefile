@@ -14,9 +14,9 @@
 # are also available at
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
-MPOST=		timeline.mp
-MPOST+=		schedule.mp
+FILES=			timeline.mp
+FILES+=			schedule.mp
 
-.include "blueprint.mpost.mk"
+.include "mpost.files.mk"
 
 ### End of file `Makefile'

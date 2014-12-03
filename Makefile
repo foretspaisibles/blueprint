@@ -15,9 +15,20 @@
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
 PACKAGE=	blueprint
-AUTHOR=		Michael Grünewald
+VERSION=	0.1
+OFFICER=	michipili@gmail.com
 
-.MAKEFLAGS: -I${.CURDIR}/Library/Make
-.include "blueprint.main.mk"
+MODULE=		mpost.files:base
+MODULE+=	mpost.files:pm
+MODULE+=	mpost.files:uml
+MODULE+=	mpost.files:chart
+MODULE+=	latex.doc:example
+
+post-install-mktexlsr: .PHONY
+	mktexlsr ${datarootdir}/texmf-local
+
+post-install: post-install-mktexlsr
+
+.include "bps.project.mk"
 
 ### End of file `Makefile'

@@ -14,12 +14,12 @@
 # are also available at
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
-DOCS=		example.tex
+DOCUMENT=		example.tex
 
-FIGS=		example_timeline.mp
-FIGS+=		example_schedule.mp
-FIGS+=		example_umlcomponent.mp
-FIGS+=		example_legend.mp
+SRCS=			example_timeline.mp
+SRCS+=			example_schedule.mp
+SRCS+=			example_umlcomponent.mp
+SRCS+=			example_legend.mp
 
 example_legend-0.mps: times.d
 
@@ -28,6 +28,6 @@ times.d: monadic_buffer.ml
 
 REALCLEANFILES+=	times.d
 
-.include "blueprint.doc.mk"
+.include "latex.doc.mk"
 
 ### End of file `Makefile'
