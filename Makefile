@@ -22,7 +22,7 @@ MODULE=		mpost.files:base
 MODULE+=	mpost.files:pm
 MODULE+=	mpost.files:uml
 MODULE+=	mpost.files:chart
-MODULE+=	latex.doc:example
+MODULE+=	mpost.doc:example
 
 post-install-mktexlsr: .PHONY
 	mktexlsr ${datarootdir}/texmf-local
