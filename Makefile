@@ -29,6 +29,6 @@ post-install-mktexlsr: .PHONY
 
 post-install: post-install-mktexlsr
 
-.include "bps.project.mk"
+.include "generic.project.mk"
 
 ### End of file `Makefile'
