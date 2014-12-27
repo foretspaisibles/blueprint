@@ -15,6 +15,7 @@
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
 AC_INIT(pm/timeline.mp)
-AC_OUTPUT(Makefile.inc)
+AC_CONFIG_FILES([Makefile.config])
+AC_OUTPUT
 
 ### End of file `configure.ac'
