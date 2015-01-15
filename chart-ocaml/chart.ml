@@ -36,7 +36,7 @@ class chart () =
                ~vpolicy:`AUTOMATIC
                ()
   in
-  let canvas = GnoCanvas.canvas ~packing:view#add () in
+  let canvas = GnoCanvas.canvas ~aa:true ~packing:view#add () in
   let line1 = GnoCanvas.line
                 ~points:(series_add_x series1)
                 ~props:(lineprops "#2669a0") canvas#root
