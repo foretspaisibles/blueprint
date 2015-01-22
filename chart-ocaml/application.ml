@@ -16,6 +16,18 @@ http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 open GMain
 open GdkKeysyms
 
+let card1 = {
+  Card.
+  name = "Lucy";
+  surname = "Wadham";
+}
+
+let card2 = {
+  Card.
+  name = "Rebecca";
+  surname = "West";
+}
+
 let mainwindow () =
   let window = GWindow.window ~width:320 ~height:240 ~title:"Test OCaml charts" () in
   let vbox = GPack.vbox ~packing:window#add () in
@@ -32,6 +44,16 @@ let mainwindow () =
 
   (* Chart *)
   let chart = Chart.chart ~packing:vbox#add () in
+
+  (* Cards *)
+  let viewcard1 = Card.view ~packing:vbox#add ~card:card1 () in
+  let viewcard2 = Card.view ~packing:vbox#add ~card:card2 () in
+  let editcard1 = Card.edit ~packing:vbox#add ~card:card1 () in
+  let editcard2 = Card.edit ~packing:vbox#add ~card:card2 () in
+
+  let _ = factory#add_item "Connect" ~key:_C
+			   ~callback:(fun () -> viewcard2 # set_card card1)
+  in
 
   (* Display the windows and enter Gtk+ main loop *)
   let _ =   window#connect#destroy ~callback:Main.quit in

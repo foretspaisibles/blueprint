@@ -16,6 +16,7 @@
 
 PROGRAM=		test-chart
 
+SRCS+=			card.ml
 SRCS+=			chart.ml
 SRCS+=			application.ml
 
