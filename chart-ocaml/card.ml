@@ -5,9 +5,6 @@ type card = {
   surname: string;
 }
 
-module CardMVC = PatternMVC.Make (struct
-end)
-
 let pango_markup_buffer_sz =
   100
 
@@ -64,7 +61,9 @@ class view () =
   in
   let vbox = GPack.vbox () in
   let label init =
-    GMisc.label ~markup:(init()) ~packing:vbox#add ~xalign:0.0 ()
+    GMisc.label ~markup:(init())
+		~packing:(vbox#pack ~expand:false)
+		~xalign:0.0 ()
   in
   let labelname =
     label name
@@ -109,10 +108,10 @@ class edit () =
   in
   let vbox = GPack.vbox () in
   let label text =
-    GMisc.label ~text ~packing:vbox#add ~xalign:1.0 ()
+    GMisc.label ~text ~packing:(vbox#pack ~expand:false) ~xalign:1.0 ()
   in
   let entry () =
-    GEdit.entry ~packing:vbox#add ()
+    GEdit.entry ~packing:(vbox#pack ~expand:false) ()
   in
   let labelname =
     label "Name"
