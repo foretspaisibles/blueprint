@@ -45,14 +45,18 @@ let mainwindow () =
   (* Chart *)
   let chart = Chart.chart ~packing:vbox#add () in
 
+  (* Models *)
+  let model1 = new Card.model card1 in
+  let model2 = new Card.model card2 in
+
   (* Cards *)
-  let viewcard1 = Card.view ~packing:vbox#add ~card:card1 () in
-  let viewcard2 = Card.view ~packing:vbox#add ~card:card2 () in
-  let editcard1 = Card.edit ~packing:vbox#add ~card:card1 () in
-  let editcard2 = Card.edit ~packing:vbox#add ~card:card2 () in
+  let viewcard1 = Card.presenter ~packing:vbox#add ~model:model1 () in
+  let viewcard2 = Card.presenter ~packing:vbox#add ~model:model2 () in
+  let editcard1 = Card.edit ~packing:vbox#add ~model:model1 () in
+  let editcard2 = Card.edit ~packing:vbox#add ~model:model2 () in
 
   let _ = factory#add_item "Connect" ~key:_C
-			   ~callback:(fun () -> viewcard2 # set_card card1)
+			   ~callback:(fun () -> viewcard2#set_model model1)
   in
 
   (* Display the windows and enter Gtk+ main loop *)

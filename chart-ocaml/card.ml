@@ -38,30 +38,58 @@ let maybe_pack ?packing w =
   );
   w
 
+class ['observer] subject =
+object (self : 'selftype)
+  val mutable observers : 'observer list = []
+  method add obs =
+    observers <- obs :: observers
+  method notify (message : 'observer -> 'selftype -> unit) =
+    List.iter (fun obs -> message obs self) observers
+end
 
-class view () =
-  let cardref = ref None in
-  let name () =
-    match !cardref with
-    | None -> pango_markup
-		~attr:(pango_style_not_set @ pango_style_name)
-		"not set"
-    | Some(c) -> pango_markup
-		   ~attr:pango_style_name
-		   c.name
+class ['subject] observer =
+object
+end
+
+class ['observer] model c =
+object (self : 'selftype)
+  inherit ['observer] subject
+  val mutable card = c
+  method notify_change =
+    self#notify (fun obs -> obs#changed)
+  method set c =
+    card <- c;
+    self#notify_change
+  method get =
+    card
+  method name =
+    card.name
+  method surname =
+    card.surname
+end
+
+class virtual ['subject] view =
+object(self : 'selftype)
+  inherit ['subject] observer
+  val mutable model =
+    new model { name = ""; surname = ""; }
+  method virtual changed : 'selftype model -> unit
+  method set_model (s :  'selftype model) =
+    model <- s;
+    model#add self;
+    self#changed model
+end
+
+class ['subject] presenter () =
+  let name s =
+    pango_markup ~attr:pango_style_name s#name
   in
-  let surname () =
-    match !cardref with
-    | None -> pango_markup
-		~attr:(pango_style_not_set @ pango_style_surname)
-		"not set"
-    | Some(c) -> pango_markup
-		   ~attr:pango_style_surname
-		   c.surname
+  let surname s =
+    pango_markup ~attr:pango_style_surname s#surname
   in
   let vbox = GPack.vbox () in
   let label init =
-    GMisc.label ~markup:(init())
+    GMisc.label ~markup:"not set"
 		~packing:(vbox#pack ~expand:false)
 		~xalign:0.0 ()
   in
@@ -71,41 +99,28 @@ class view () =
   let labelsurname =
     label surname
   in
-  object(self)
+  object(self : 'selftype)
     inherit GObj.widget vbox#as_widget
-
-    method update () =
-      labelname#set_text (name());
+    inherit ['subject] view
+    method changed (s : 'selftype model) =
+      labelname#set_text (name s);
       labelname#set_use_markup true;
-      labelsurname#set_text (surname());
+      labelsurname#set_text (surname s);
       labelsurname#set_use_markup true
-    method set_card c =
-      cardref := Some(c);
-      self#update()
   end
 
-let view ?packing ?card () =
-  let w = new view () in
+
+let presenter ?packing ?model () =
+  let w = new presenter () in
   (
-    match card with
+    match model with
     | None -> ()
-    | Some(c) -> w#set_card c
+    | Some(m) -> w#set_model m
   );
   maybe_pack ?packing w
 
 
-class edit () =
-  let cardref = ref None in
-  let name () =
-    match !cardref with
-    | None -> ""
-    | Some(c) -> c.name
-  in
-  let surname () =
-    match !cardref with
-    | None -> ""
-    | Some(c) -> c.surname
-  in
+class ['subject] edit () =
   let vbox = GPack.vbox () in
   let label text =
     GMisc.label ~text ~packing:(vbox#pack ~expand:false) ~xalign:1.0 ()
@@ -127,25 +142,17 @@ class edit () =
   in
   object(self)
     inherit GObj.widget vbox#as_widget
-
-    method update () =
-      entryname#set_text (name());
-      entrysurname#set_text (surname());
-    method set_card c =
-      cardref := Some(c);
-      self#update()
-    method get_card =
-      match !cardref with
-      | None -> { name = ""; surname = "" }
-      | Some(c) -> c
-    method callback_changed () =
-      let newcard = {
+    inherit ['subject] view
+    method changed s =
+      entryname#set_text s#name;
+      entrysurname#set_text s#surname;
+    method private callback_changed () =
+      let card = {
 	name = entryname#text;
 	surname = entrysurname#text;
       }
       in
-      printf "Changed: %s, %s\n%!" newcard.surname newcard.name;
-      self#set_card newcard
+      model#set card
     initializer
       List.iter ignore [
         entryname#connect#activate ~callback:self#callback_changed;
@@ -153,11 +160,11 @@ class edit () =
       ]
   end
 
-let edit ?packing ?card () =
+let edit ?packing ?model () =
   let w = new edit () in
   (
-    match card with
+    match model with
     | None -> ()
-    | Some(c) -> w#set_card c
+    | Some(m) -> w#set_model m
   );
   maybe_pack ?packing w
