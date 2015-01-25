@@ -43,7 +43,11 @@ let mainwindow () =
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
   (* Chart *)
-  let chart = Chart.chart ~packing:vbox#add () in
+  let canvas_properties = new Chart.CanvasProperties.subject in
+  let chart = Chart.chart ~packing:vbox#pack ~canvas_properties () in
+  let canvas_properties_editor =
+    Chart.CanvasProperties.editor ~packing:vbox#pack ~canvas_properties ()
+  in
 
   (* Models *)
   let model1 = new Card.model card1 in
@@ -63,7 +67,6 @@ let mainwindow () =
   let _ =   window#connect#destroy ~callback:Main.quit in
   window#add_accel_group accel_group;
   window#show ();
-  ignore chart;
   window
 
 let main () =
