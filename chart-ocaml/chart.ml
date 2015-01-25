@@ -21,6 +21,8 @@ let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
 (* Canvas properties *)
 module CanvasProperties =
 struct
+  let canvas_properties_scale_unit =
+    4.0
   type t = {
     bg: GDraw.color;
     scale: float;
@@ -65,47 +67,50 @@ object(self)
   inherit ['subject] observer s
   method canvas_properties_changed s =
     let canvas_properties = s#get in
-    canvas#set_pixels_per_unit canvas_properties.scale;
+    canvas#set_pixels_per_unit
+	     (canvas_properties_scale_unit *. canvas_properties.scale);
     canvas#misc#modify_bg [`NORMAL, canvas_properties.bg];
 end
 
 class ['subject] editor s =
   let canvas_properties = s#get in
   let container = GPack.hbox () in
-  let adjustment = GData.adjustment
-		     ~value:canvas_properties.scale
-		     ~lower:0.01
-		     ~upper:2000.0
-		     ~step_incr:0.01
-		     ~page_incr:0.1
-		     ~page_size:0.0
-		     ()
+  let scale =
+    GData.adjustment
+      ~value:canvas_properties.scale
+      ~lower:0.01
+      ~upper:8.0
+      ~step_incr:0.01
+      ~page_incr:0.1
+      ~page_size:0.0
+      ()
   in
-  let spin = GEdit.spin_button
-	       ~adjustment
-	       ~rate:0.0
-	       ~digits:2
-	       ~packing:container#add () in
-  let bgselect = GButton.color_button
-		   ~color:(GDraw.color canvas_properties.bg)
-		   ~packing:container#add () in
+  let scaleselect =
+    GRange.scale
+      `HORIZONTAL
+      ~adjustment:scale
+      ~digits:2
+      ~packing:container#add () in
+  let bgselect =
+    GButton.color_button
+      ~color:(GDraw.color canvas_properties.bg)
+      ~packing:container#add () in
   object(self)
   inherit GObj.widget container#as_widget
   inherit ['subject] observer s
   method canvas_properties_changed s =
     let canvas_properties = s#get in
-    spin#set_value canvas_properties.scale;
+    scale#set_value canvas_properties.scale;
     bgselect#set_color (GDraw.color canvas_properties.bg);
   method private callback_changed () =
     let canvas_properties = {
-      scale = spin#value;
+      scale = scale#value;
       bg = (`COLOR bgselect#color);
     } in
     subject#set canvas_properties
   initializer
     ignore [
-	spin#connect#activate ~callback:self#callback_changed;
-	spin#connect#changed ~callback:self#callback_changed;
+	scale#connect#value_changed ~callback:self#callback_changed;
 	bgselect#connect#color_set ~callback:self#callback_changed;
       ]
   end

@@ -44,7 +44,7 @@ let mainwindow () =
 
   (* Chart *)
   let canvas_properties = new Chart.CanvasProperties.subject in
-  let chart = Chart.chart ~packing:vbox#pack ~canvas_properties () in
+  let chart = Chart.chart ~packing:vbox#add ~canvas_properties () in
   let canvas_properties_editor =
     Chart.CanvasProperties.editor ~packing:vbox#pack ~canvas_properties ()
   in
