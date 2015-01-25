@@ -38,22 +38,9 @@ let maybe_pack ?packing w =
   );
   w
 
-class ['observer] subject =
-object (self : 'selftype)
-  val mutable observers : 'observer list = []
-  method add obs =
-    observers <- obs :: observers
-  method notify (message : 'observer -> 'selftype -> unit) =
-    List.iter (fun obs -> message obs self) observers
-end
-
-class ['subject] observer =
-object
-end
-
 class ['observer] model c =
 object (self : 'selftype)
-  inherit ['observer] subject
+  inherit ['observer] PatternSubjectObserver.subject
   val mutable card = c
   method notify_change =
     self#notify (fun obs -> obs#changed)
@@ -70,7 +57,7 @@ end
 
 class virtual ['subject] view =
 object(self : 'selftype)
-  inherit ['subject] observer
+  inherit ['subject] PatternSubjectObserver.observer
   val mutable model =
     new model { name = ""; surname = ""; }
   method virtual changed : 'selftype model -> unit
