@@ -131,18 +131,146 @@ struct
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
 end
 
+
+module Palette =
+struct
+  let predefined = [
+    "Blue", [|
+      081, 130, 188;
+      154, 198, 227;
+      000, 053, 123;
+      082, 169, 222;
+      001, 005, 017;
+      000, 091, 164;
+     |];
+
+    "Brown", [|
+      165, 127, 091;
+      212, 198, 153;
+      080, 055, 035;
+      196, 161, 105;
+      041, 013, 000;
+      141, 079, 038;
+     |];
+
+    "Gray", [|
+      134, 134, 134;
+      203, 205, 202;
+      061, 061, 061;
+      159, 159, 159;
+      001, 001, 001;
+      237, 237, 237;
+     |];
+
+    "Green", [|
+      020, 123, 054;
+      150, 201, 134;
+      000, 062, 025;
+      079, 177, 078;
+      000, 013, 003;
+      000, 098, 028;
+     |];
+
+    "Spectrum", [|
+      038, 105, 160;
+      082, 172, 085;
+      249, 177, 059;
+      225, 038, 055;
+      142, 169, 142;
+      144, 146, 145;
+     |];
+  ]
+
+  let find key =
+    List.assoc key predefined
+
+  let names () =
+    List.map fst predefined
+
+  let default_name () =
+    "Blue"
+
+  let default () =
+    find (default_name())
+
+  let get_as_string palette i =
+    let (r,g,b) = Array.get palette i in
+    sprintf "#%02x%02x%02x" r g b
+end
+
+module Line =
+struct
+  class stylist palette_name i =
+    let palette =
+      try Palette.find palette_name
+      with Not_found -> Palette.default ()
+    in
+  object
+    method props : GnomeCanvas.line_p list = [
+      `WIDTH_PIXELS(4);
+      `FILL_COLOR(Palette.get_as_string palette i);
+    ]
+  end
+
+  let stylist palette_name i =
+    new stylist palette_name i
+
+  class series (stylist : stylist) parent =
+    let myself = GnoCanvas.group parent in
+    let unpack xypoints =
+      let loop i =
+	match i mod 2 = 0, i/2 with
+	| true, k -> Array.get xypoints k |> fst
+	| false, k -> Array.get xypoints k |> snd |> (~-.)
+      in
+      Array.init (2*(Array.length xypoints)) loop
+    in
+    object (self)
+    inherit GnoCanvas.group myself#as_group
+    val mutable size = 0
+    val mutable points = [| |]
+    val mutable line = GnoCanvas.line myself
+    val mutable stylist = stylist
+    method private update =
+      line#destroy ();
+      line <- GnoCanvas.line
+		~points
+		~props:stylist#props
+		myself
+    method set_points xypoints =
+      points <- unpack xypoints;
+      self#update
+    method set_stylist newstylist =
+      stylist <- newstylist;
+      self#update
+  end
+
+  let series ?stylist ?points parent =
+    let actualstylist =
+      match stylist with
+      | Some(s) -> s
+      | None -> new stylist (Palette.default_name()) 0
+    in
+    let answer =
+      new series actualstylist parent
+    in
+    match points with
+    | Some(p) -> answer#set_points p; answer
+    | None -> answer
+end
+
 let series_add_x series =
   let f k =
-    match (k mod 2 = 0, k/2) with
-    | true, i -> float_of_int (i * 20)
-    | false, i -> 100. -.(series.(i))
+    (float_of_int (k * 20), series.(k))
   in
   let n = Array.length series in
-  Array.init (2*n) f
+  Array.init (Array.length series) f
 
 let lineprops color =
   [`SMOOTH(true); `WIDTH_PIXELS(4); `FILL_COLOR(color)]
+
 class ['subject] chart () =
+  let palette_name = "Spectrum" in
   let canvas_properties = new CanvasProperties.subject in
   let vbox = GPack.vbox () in
   let view = GBin.scrolled_window
@@ -152,13 +280,19 @@ class ['subject] chart () =
                ()
   in
   let canvas = GnoCanvas.canvas ~aa:true ~packing:view#add () in
-  let line1 = GnoCanvas.line
-                ~points:(series_add_x series1)
-                ~props:(lineprops "#2669a0") canvas#root
+  let stylist1 = Line.stylist palette_name 0 in
+  let stylist2 = Line.stylist palette_name 1 in
+  let line1 =
+    Line.series
+      ~stylist:stylist1
+      ~points:(series_add_x series1)
+      canvas#root
   in
-  let line2 = GnoCanvas.line
-                ~points:(series_add_x series2)
-                ~props:(lineprops "#e12637" ) canvas#root
+  let line2 =
+    Line.series
+      ~stylist:stylist2
+      ~points:(series_add_x series2)
+      canvas#root
   in
   object
     inherit GObj.widget vbox#as_widget

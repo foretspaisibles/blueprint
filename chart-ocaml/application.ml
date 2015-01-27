@@ -31,7 +31,6 @@ let card2 = {
 let mainwindow () =
   let window = GWindow.window ~width:320 ~height:240 ~title:"Test OCaml charts" () in
   let vbox = GPack.vbox ~packing:window#add () in
-
   (* Menu bar *)
   let menubar = GMenu.menu_bar ~packing:vbox#pack () in
   let factory = new GMenu.factory menubar in
@@ -65,6 +64,10 @@ let mainwindow () =
 
   (* Display the windows and enter Gtk+ main loop *)
   let _ =   window#connect#destroy ~callback:Main.quit in
+  viewcard1#misc#hide ();
+  editcard1#misc#hide ();
+  viewcard2#misc#hide ();
+  editcard2#misc#hide ();
   window#add_accel_group accel_group;
   window#show ();
   window
