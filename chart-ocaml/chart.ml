@@ -26,7 +26,7 @@ struct
   object
     inherit GObj.widget
     method attach : 'a GUtil.variable -> unit
-    method detach : unit -> unit
+    method detach : unit
   end
 
   class virtual ['a] observer_trait ?variable () =
@@ -63,21 +63,26 @@ struct
     method as_variable =
       (self :> 'a GUtil.variable)
     method virtual create_view : 'a observer
-    method finalize_observer (v : 'a observer) =
+    method private finalize_observer (v : 'a observer) =
       v#attach self#as_variable
-    method view =
+    method view ?packing ?show () =
       self#create_view
+      |> GObj.pack_return ?packing ~show
       |> self#finalize_observer
   end
 
   class virtual ['a] editable value =
   object (self)
-    inherit ['a] viewable value
+    inherit ['a] GUtil.variable value
+    method as_variable =
+      (self :> 'a GUtil.variable)
     method virtual create_editor : 'a observer
-    method editor =
+    method private finalize_editor (v : 'a observer) =
+      v#attach self#as_variable
+    method editor ?packing ?show () =
       self#create_editor
-      |> self#finalize_observer
-
+      |> GObj.pack_return ?packing ~show
+      |> self#finalize_editor
   end
 end
 
@@ -92,26 +97,6 @@ struct
     scale: float;
   }
 
-  class subject =
-    let defaults = {
-      bg = `WHITE;
-      scale = 1.0;
-    } in
-  object(self)
-    inherit [t] GUtil.variable defaults
-    method as_variable =
-      (self :> 'a GUtil.variable)
-    method set_bg x =
-      self#set { self#get with bg = x }
-    method set_scale x =
-      self#set { self#get with scale = x }
-    method private equal a b =
-      let unpack x =
-	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
-      in
-      (unpack a) = (unpack b)
-  end
-
   class virtual observer ?variable () =
     object (self)
       inherit [t] SmartVariable.observer_trait ?variable ()
@@ -121,15 +106,6 @@ struct
       method callback_set props =
 	self#canvas_properties_changed props
     end
-
-  class user canvas canvas_properties =
-  object(self)
-    inherit observer ~variable:(canvas_properties) ()
-    method canvas_properties_changed props =
-      canvas#set_pixels_per_unit
-	       (canvas_properties_scale_unit *. props.scale);
-      canvas#misc#modify_bg [`NORMAL, props.bg];
-  end
 
   class editor props =
     let canvas_properties = props#get in
@@ -173,6 +149,37 @@ struct
 	    scale#connect#value_changed ~callback:self#notify_changed;
 	    bgselect#connect#color_set ~callback:self#notify_changed;
 	  ];
+  end
+
+  class subject =
+    let defaults = {
+      bg = `WHITE;
+      scale = 1.0;
+    } in
+  object(self)
+    inherit [t] SmartVariable.editable defaults
+    method as_variable =
+      (self :> 'a GUtil.variable)
+    method set_bg x =
+      self#set { self#get with bg = x }
+    method set_scale x =
+      self#set { self#get with scale = x }
+    method private equal a b =
+      let unpack x =
+	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
+      in
+      (unpack a) = (unpack b)
+    method create_editor =
+      (new editor self#as_variable :> t SmartVariable.observer)
+  end
+
+  class user canvas canvas_properties =
+  object(self)
+    inherit observer ~variable:(canvas_properties) ()
+    method canvas_properties_changed props =
+      canvas#set_pixels_per_unit
+	       (canvas_properties_scale_unit *. props.scale);
+      canvas#misc#modify_bg [`NORMAL, props.bg];
   end
 
   let editor

@@ -60,7 +60,7 @@ let mainwindow () =
       ()
   in
   let canvas_properties_editor =
-    Chart.CanvasProperties.editor ~packing:vbox#pack ~canvas_properties ()
+    canvas_properties#editor ~packing:vbox#add ()
   in
 
   (* Models *)

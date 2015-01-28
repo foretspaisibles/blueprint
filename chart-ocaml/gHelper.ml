@@ -14,13 +14,13 @@ struct
   end
 end
 
-let chain_callback f x =
+let chain_callback (f:'a->unit) x =
   f x; x
 
 let maybe_callback opt x =
   match opt with
   | None -> x
-  | Some(f) -> f x; x
+  | Some(f) -> chain_callback f x
 
 let maybe_apply opt f x =
   match opt with
