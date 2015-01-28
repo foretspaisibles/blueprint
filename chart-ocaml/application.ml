@@ -45,7 +45,7 @@ let mainwindow () =
   let palette_stylist =
     Chart.Palette.stylist ()
   in
-  let palette_picker =
+  let _palette_picker =
     Chart.Palette.picker
       ~packing:vbox#pack
       ~stylist:palette_stylist
@@ -53,13 +53,13 @@ let mainwindow () =
   in
   (* Chart *)
   let canvas_properties = new Chart.CanvasProperties.subject in
-  let chart =
+  let _chart =
     Chart.chart
       ~packing:vbox#add
       ~canvas_properties:canvas_properties#as_variable
       ()
   in
-  let canvas_properties_editor =
+  let _canvas_properties_editor =
     canvas_properties#editor ~packing:vbox#add ()
   in
 
