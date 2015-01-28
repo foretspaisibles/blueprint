@@ -120,7 +120,7 @@ struct
 	~page_size:0.0
 	()
     in
-    let scaleselect =
+    let _scaleselect =
       GRange.scale
 	`HORIZONTAL
 	~adjustment:scale
@@ -362,7 +362,6 @@ let series_add_x series =
   let f k =
     (float_of_int (k * 20), series.(k))
   in
-  let n = Array.length series in
   Array.init (Array.length series) f
 
 let lineprops color =
@@ -381,13 +380,13 @@ class ['subject] chart () =
   let canvas = GnoCanvas.canvas ~aa:true ~packing:view#add () in
   let stylist1 = Line.stylist palette_name 0 in
   let stylist2 = Line.stylist palette_name 1 in
-  let line1 =
+  let _line1 =
     Line.series
       ~stylist:stylist1
       ~points:(series_add_x series1)
       canvas#root
   in
-  let line2 =
+  let _line2 =
     Line.series
       ~stylist:stylist2
       ~points:(series_add_x series2)
