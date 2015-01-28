@@ -40,6 +40,11 @@ struct
 	self#set { self#get with bg = x }
       method set_scale x =
 	self#set { self#get with scale = x }
+      method private equal a b =
+	let unpack x =
+	  (Gdk.Color.pixel (GDraw.color x.bg), x.scale)
+	in
+	(unpack a) = (unpack b)
     end
 
   class virtual observer =
