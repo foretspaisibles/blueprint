@@ -115,13 +115,13 @@ class ['subject] edit () =
   let entry () =
     GEdit.entry ~packing:(vbox#pack ~expand:false) ()
   in
-  let labelname =
+  let _labelname =
     label "Name"
   in
   let entryname =
     entry ()
   in
-  let labelsurname =
+  let _labelsurname =
     label "Surname"
   in
   let entrysurname =
