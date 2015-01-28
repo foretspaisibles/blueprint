@@ -13,6 +13,13 @@ This source file is licensed as described in the file COPYING, which
 you should have received as part of this distribution. The terms
 are also available at
 http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
+
+(* Todo:
+- Prepare a stored mixin for values
+- The stored mixin works as a decorator on the attach method
+- Create a packing function which creates a smart variable
+  with a store or without store, as required. *)
+
 open Printf
 
 let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
@@ -69,6 +76,7 @@ struct
       self#create_view
       |> GObj.pack_return ~packing ~show
       |> self#finalize_observer
+    method virtual name : string
   end
 
   class virtual ['a] editable value =
@@ -78,12 +86,61 @@ struct
       (self :> 'a GUtil.variable)
     method virtual create_editor : 'a observer
     method private finalize_editor (v : 'a observer) =
-      v#attach self#as_variable
+      v#attach self#as_variable; v
     method editor ?packing ?show () =
       self#create_editor
       |> GObj.pack_return ~packing ~show
       |> self#finalize_editor
   end
+
+  class editable_item
+    (editable : 'a editable)
+    (name : string)
+    =
+  object
+    method editor ?packing ?show () =
+      (editable#editor ?packing ?show ())#coerce
+    method name =
+      name
+  end
+
+  let editable_item editable name =
+    new editable_item editable name
+
+  class editable_store =
+    let create_and_pack ?packing (item : editable_item) =
+      GMisc.label ~text:item#name ?packing ()
+      |> ignore;
+      item#editor ?packing ~show:true ()
+      |> ignore
+    in
+  object (self)
+    val mutable store = []
+    method add (item : editable_item) =
+      store <- item :: store
+    method private create_editor =
+      let box = GPack.vbox () in
+      List.iter (create_and_pack ~packing:box#add) store;
+      box
+    method editor ?packing ?show () =
+      self#create_editor
+      |> GObj.pack_return ~packing ~show
+    method popup =
+      let w =
+	GWindow.window
+	  ~type_hint:`UTILITY
+	  ~show:true
+	  ()
+      in
+      self#editor ~packing:w#add ~show:true ()
+      |> ignore
+  end
+
+  let editable_store () =
+    new editable_store
+
+  let pack ~store ~(editable : 'a #editable) ~name =
+    store#add (editable_item (editable :> 'a editable) name)
 end
 
 (* Canvas properties *)
@@ -172,6 +229,9 @@ struct
     method create_editor =
       (new editor self#as_variable :> t SmartVariable.observer)
   end
+
+  let subject () =
+    new subject
 
   class user canvas canvas_properties =
   object(self)
@@ -369,8 +429,16 @@ let lineprops color =
 
 class ['subject] chart () =
   let palette_name = "Spectrum" in
-  let canvas_properties = new CanvasProperties.subject in
+  let editable_store = SmartVariable.editable_store () in
+  let canvas_properties = CanvasProperties.subject () in
+  let _ =
+    SmartVariable.pack
+      ~store:editable_store
+      ~editable:canvas_properties
+      ~name:"Canvas properties"
+  in
   let vbox = GPack.vbox () in
+  let _editor = editable_store#editor ~packing:vbox#add () in
   let view = GBin.scrolled_window
                ~packing:vbox#add
                ~hpolicy:`AUTOMATIC
@@ -397,6 +465,7 @@ class ['subject] chart () =
     inherit CanvasProperties.user canvas canvas_properties#as_variable
     initializer
       canvas#set_pixels_per_unit 5.0;
+      (* editable_store#popup; *)
   end
 
 let chart
