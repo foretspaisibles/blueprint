@@ -18,6 +18,69 @@ open Printf
 let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
 let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
 
+
+(* Smart variable *)
+module SmartVariable =
+struct
+  class type ['a] observer =
+  object
+    inherit GObj.widget
+    method attach : 'a GUtil.variable -> unit
+    method detach : unit -> unit
+  end
+
+  class virtual ['a] observer_trait ?variable () =
+  object (self)
+    val mutable subject = None
+    val mutable signalids = []
+    method virtual callback_changed : 'a -> unit
+    method virtual callback_set : 'a -> unit
+    method private disconnect =
+      match subject with
+      | None -> ()
+      | Some(s) -> ( List.iter s#connect#disconnect signalids;
+		     signalids <- []; )
+    method attach (s : 'a GUtil.variable) =
+      self#disconnect;
+      subject <- Some(s);
+      signalids <- [
+	s#connect#set ~callback:self#callback_set;
+	s#connect#changed ~callback:self#callback_changed;
+      ];
+      self#callback_changed s#get
+    method detach =
+      self#disconnect;
+      subject <- None
+    initializer
+      match variable with
+      | None -> ()
+      | Some(s) -> self#attach s
+  end
+
+  class virtual ['a] viewable value =
+  object (self)
+    inherit ['a] GUtil.variable value
+    method as_variable =
+      (self :> 'a GUtil.variable)
+    method virtual create_view : 'a observer
+    method finalize_observer (v : 'a observer) =
+      v#attach self#as_variable
+    method view =
+      self#create_view
+      |> self#finalize_observer
+  end
+
+  class virtual ['a] editable value =
+  object (self)
+    inherit ['a] viewable value
+    method virtual create_editor : 'a observer
+    method editor =
+      self#create_editor
+      |> self#finalize_observer
+
+  end
+end
+
 (* Canvas properties *)
 module CanvasProperties =
 struct
@@ -34,45 +97,38 @@ struct
       bg = `WHITE;
       scale = 1.0;
     } in
-    object(self)
-      inherit [t] GUtil.variable defaults
-      method set_bg x =
-	self#set { self#get with bg = x }
-      method set_scale x =
-	self#set { self#get with scale = x }
-      method private equal a b =
-	let unpack x =
-	  (Gdk.Color.pixel (GDraw.color x.bg), x.scale)
-	in
-	(unpack a) = (unpack b)
-    end
+  object(self)
+    inherit [t] GUtil.variable defaults
+    method as_variable =
+      (self :> 'a GUtil.variable)
+    method set_bg x =
+      self#set { self#get with bg = x }
+    method set_scale x =
+      self#set { self#get with scale = x }
+    method private equal a b =
+      let unpack x =
+	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
+      in
+      (unpack a) = (unpack b)
+  end
 
-  class virtual observer =
-    object(self)
-      val mutable subject = None
-      val mutable signalids = []
+  class virtual observer ?variable () =
+    object (self)
+      inherit [t] SmartVariable.observer_trait ?variable ()
       method virtual canvas_properties_changed : t -> unit
-      method set_canvas_properties (props : subject) =
-	Gaux.may
-	  (fun oldprops -> List.iter oldprops#connect#disconnect signalids)
-	  subject;
-	subject <- Some(props);
-	signalids <- [
-	  props#connect#set
-			    ~callback:self#canvas_properties_changed
-	];
-	self#canvas_properties_changed props#get
+      method callback_changed props =
+	self#canvas_properties_changed props
+      method callback_set props =
+	self#canvas_properties_changed props
     end
 
   class user canvas canvas_properties =
   object(self)
-    inherit observer
+    inherit observer ~variable:(canvas_properties) ()
     method canvas_properties_changed props =
       canvas#set_pixels_per_unit
 	       (canvas_properties_scale_unit *. props.scale);
       canvas#misc#modify_bg [`NORMAL, props.bg];
-    initializer
-      self#set_canvas_properties canvas_properties
   end
 
   class editor props =
@@ -100,22 +156,22 @@ struct
 	~packing:container#add () in
     object(self)
       inherit GObj.widget container#as_widget
-      inherit observer
+      inherit observer ()
 
       method canvas_properties_changed props =
 	scale#set_value props.scale;
 	bgselect#set_color (GDraw.color props.bg);
-      method private callback_changed () =
+      method notify_changed () =
 	let canvas_properties = {
 	  scale = scale#value;
 	  bg = (`COLOR bgselect#color);
 	} in
 	Gaux.may (fun props -> props#set canvas_properties) subject
       initializer
-	self#set_canvas_properties props;
+	self#attach props;
 	ignore [
-	    scale#connect#value_changed ~callback:self#callback_changed;
-	    bgselect#connect#color_set ~callback:self#callback_changed;
+	    scale#connect#value_changed ~callback:self#notify_changed;
+	    bgselect#connect#color_set ~callback:self#notify_changed;
 	  ];
   end
 
@@ -132,7 +188,7 @@ struct
     | Some(p) -> p
     | None -> new subject
   in
-  new editor actual_canvas_properties
+  new editor actual_canvas_properties#as_variable
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
 end
 
@@ -186,6 +242,9 @@ struct
      |];
   ]
 
+  type t = color array
+   and color = int * int * int
+
   let find key =
     List.assoc key predefined
 
@@ -201,6 +260,34 @@ struct
   let get_as_string palette i =
     let (r,g,b) = Array.get palette i in
     sprintf "#%02x%02x%02x" r g b
+
+  class stylist palette =
+  object (self)
+    inherit [t] GUtil.variable palette
+  end
+
+  let stylist ?palette () =
+    let actual_palette =
+      match palette with
+      | Some(p) -> p
+      | None -> default()
+    in
+    new stylist actual_palette
+
+  class picker ?packing ?stylist =
+    let (popdown, (store, colum)) =
+      GEdit.combo_box_text
+	?packing
+	~strings:(names())
+	()
+    in
+  object (self)
+    inherit GObj.widget popdown#as_widget
+    val mutable subject = stylist
+  end
+
+  let picker ?packing ?stylist () =
+    new picker ?packing ?stylist
 end
 
 module Line =
@@ -301,7 +388,7 @@ class ['subject] chart () =
   in
   object
     inherit GObj.widget vbox#as_widget
-    inherit CanvasProperties.user canvas canvas_properties
+    inherit CanvasProperties.user canvas canvas_properties#as_variable
     initializer
       canvas#set_pixels_per_unit 5.0;
   end
@@ -316,4 +403,4 @@ let chart
   in
   new chart ()
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
-  |> GHelper.maybe_apply canvas_properties (fun x -> x#set_canvas_properties)
+  |> GHelper.maybe_apply canvas_properties (fun x -> x#attach)

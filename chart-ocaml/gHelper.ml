@@ -14,6 +14,9 @@ struct
   end
 end
 
+let chain_callback f x =
+  f x; x
+
 let maybe_callback opt x =
   match opt with
   | None -> x

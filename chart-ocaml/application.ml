@@ -41,9 +41,24 @@ let mainwindow () =
   let factory = new GMenu.factory file_menu ~accel_group in
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
+  (* Palette *)
+  let palette_stylist =
+    Chart.Palette.stylist ()
+  in
+  let palette_picker =
+    Chart.Palette.picker
+      ~packing:vbox#pack
+      ~stylist:palette_stylist
+      ()
+  in
   (* Chart *)
   let canvas_properties = new Chart.CanvasProperties.subject in
-  let chart = Chart.chart ~packing:vbox#add ~canvas_properties () in
+  let chart =
+    Chart.chart
+      ~packing:vbox#add
+      ~canvas_properties:canvas_properties#as_variable
+      ()
+  in
   let canvas_properties_editor =
     Chart.CanvasProperties.editor ~packing:vbox#pack ~canvas_properties ()
   in
