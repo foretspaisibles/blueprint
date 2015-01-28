@@ -67,7 +67,7 @@ struct
       v#attach self#as_variable
     method view ?packing ?show () =
       self#create_view
-      |> GObj.pack_return ?packing ~show
+      |> GObj.pack_return ~packing ~show
       |> self#finalize_observer
   end
 
@@ -81,7 +81,7 @@ struct
       v#attach self#as_variable
     method editor ?packing ?show () =
       self#create_editor
-      |> GObj.pack_return ?packing ~show
+      |> GObj.pack_return ~packing ~show
       |> self#finalize_editor
   end
 end
@@ -281,7 +281,7 @@ struct
     in
     new stylist actual_palette
 
-  class picker ?packing ?stylist =
+  class picker ?packing ?stylist () =
     let (popdown, (store, colum)) =
       GEdit.combo_box_text
 	?packing
