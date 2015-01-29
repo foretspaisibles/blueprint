@@ -36,10 +36,28 @@ struct
     method detach : unit
   end
 
+  class ['a] observer_signals
+      ~(attached : 'a GUtil.variable GUtil.signal)
+      ~(detached : unit GUtil.signal) =
+    let disconnect_list = [
+      attached#disconnect;
+      detached#disconnect;
+    ]
+    in
+  object
+    inherit GUtil.ml_signals disconnect_list
+    method attached = attached#connect ~after
+    method detached = detached#connect ~after
+  end
+
   class virtual ['a] observer_trait ?variable () =
+    let attached = new GUtil.signal () in
+    let detached = new GUtil.signal () in
   object (self)
     val mutable subject = None
     val mutable signalids = []
+    method connect =
+      new observer_signals ~attached ~detached
     method virtual callback_changed : 'a -> unit
     method virtual callback_set : 'a -> unit
     method private disconnect =
@@ -54,14 +72,31 @@ struct
 	s#connect#set ~callback:self#callback_set;
 	s#connect#changed ~callback:self#callback_changed;
       ];
+      attached#call s;
       self#callback_changed s#get
     method detach =
       self#disconnect;
-      subject <- None
+      subject <- None;
+      detached#call ()
     initializer
       match variable with
       | None -> ()
       | Some(s) -> self#attach s
+  end
+
+  class virtual ['a, 'b] controller ?variable () =
+  object (self)
+    inherit ['a] observer_trait ?variable () as super
+    val observers = new GUtil.memo
+    method virtual create_view : 'b -> 'a observer
+    method private finalize_view (v : 'a observer) =
+      self#connect#attached
+        ~callback:(fun model -> v#attach model);
+      v#coerce
+    method view ?packing ?show typ =
+      self#create_view typ
+      |> GObj.pack_return ~packing ~show
+      |> self#finalize_view
   end
 
   class virtual ['a] viewable value =
@@ -235,7 +270,7 @@ struct
 
   class user canvas canvas_properties =
   object(self)
-    inherit observer ~variable:(canvas_properties) ()
+    inherit observer ~variable:canvas_properties ()
     method canvas_properties_changed props =
       canvas#set_pixels_per_unit
 	       (canvas_properties_scale_unit *. props.scale);
@@ -462,7 +497,10 @@ class ['subject] chart () =
   in
   object
     inherit GObj.widget vbox#as_widget
-    inherit CanvasProperties.user canvas canvas_properties#as_variable
+    val canvas_properties_user =
+      new CanvasProperties.user canvas canvas_properties#as_variable
+    method attach_canvas_properties props =
+      canvas_properties_user#attach props
     initializer
       canvas#set_pixels_per_unit 5.0;
       (* editable_store#popup; *)
@@ -478,4 +516,4 @@ let chart
   in
   new chart ()
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
-  |> GHelper.maybe_apply canvas_properties (fun x -> x#attach)
+  |> GHelper.maybe_apply canvas_properties (fun x -> x#attach_canvas_properties)
