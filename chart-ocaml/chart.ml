@@ -13,13 +13,6 @@ This source file is licensed as described in the file COPYING, which
 you should have received as part of this distribution. The terms
 are also available at
 http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
-
-(* Todo:
-- Prepare a stored mixin for values
-- The stored mixin works as a decorator on the attach method
-- Create a packing function which creates a smart variable
-  with a store or without store, as required. *)
-
 open Printf
 
 let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
@@ -87,11 +80,11 @@ struct
   class virtual ['a, 'b] controller ?variable () =
   object (self)
     inherit ['a] observer_trait ?variable () as super
-    val observers = new GUtil.memo
     method virtual create_view : 'b -> 'a observer
     method private finalize_view (v : 'a observer) =
       self#connect#attached
-        ~callback:(fun model -> v#attach model);
+        ~callback:(fun model -> v#attach model)
+      |> ignore;
       v#coerce
     method view ?packing ?show typ =
       self#create_view typ
@@ -99,66 +92,38 @@ struct
       |> self#finalize_view
   end
 
-  class virtual ['a] viewable value =
-  object (self)
-    inherit ['a] GUtil.variable value
-    method as_variable =
-      (self :> 'a GUtil.variable)
-    method virtual create_view : 'a observer
-    method private finalize_observer (v : 'a observer) =
-      v#attach self#as_variable
-    method view ?packing ?show () =
-      self#create_view
-      |> GObj.pack_return ~packing ~show
-      |> self#finalize_observer
-    method virtual name : string
-  end
-
-  class virtual ['a] editable value =
-  object (self)
-    inherit ['a] GUtil.variable value
-    method as_variable =
-      (self :> 'a GUtil.variable)
-    method virtual create_editor : 'a observer
-    method private finalize_editor (v : 'a observer) =
-      v#attach self#as_variable; v
-    method editor ?packing ?show () =
-      self#create_editor
-      |> GObj.pack_return ~packing ~show
-      |> self#finalize_editor
-  end
-
-  class editable_item
-    (editable : 'a editable)
-    (name : string)
+  class controllable_item
+    ~(name : string)
+    ~(item : ('a, 'b)  controller)
+    typ
     =
   object
-    method editor ?packing ?show () =
-      (editable#editor ?packing ?show ())#coerce
+    method view ?packing ?show () =
+      (item#view ?packing ?show typ)#coerce
     method name =
       name
   end
 
-  let editable_item editable name =
-    new editable_item editable name
+  let controllable_item ~name ~item typ =
+    new controllable_item ~name ~item typ
 
-  class editable_store =
-    let create_and_pack ?packing (item : editable_item) =
-      GMisc.label ~text:item#name ?packing ()
+  class controllable_store =
+    let create_and_pack ?packing (item : controllable_item) =
+      GMisc.label ~text:item#name ?packing ~show:true ()
       |> ignore;
-      item#editor ?packing ~show:true ()
+      item#view ?packing ~show:true ()
       |> ignore
     in
   object (self)
     val mutable store = []
-    method add (item : editable_item) =
+    method add (item : controllable_item) =
       store <- item :: store
-    method private create_editor =
+    method private create_view =
       let box = GPack.vbox () in
       List.iter (create_and_pack ~packing:box#add) store;
       box
-    method editor ?packing ?show () =
-      self#create_editor
+    method view ?packing ?show () =
+      self#create_view
       |> GObj.pack_return ~packing ~show
     method popup =
       let w =
@@ -167,15 +132,15 @@ struct
 	  ~show:true
 	  ()
       in
-      self#editor ~packing:w#add ~show:true ()
+      self#view ~packing:w#add ~show:true ()
       |> ignore
   end
 
-  let editable_store () =
-    new editable_store
+  let controllable_store () =
+    new controllable_store
 
-  let pack ~store ~(editable : 'a #editable) ~name =
-    store#add (editable_item (editable :> 'a editable) name)
+  let pack ~store ~item ~name typ =
+    store#add (controllable_item ~item ~name typ)
 end
 
 (* Canvas properties *)
@@ -223,7 +188,7 @@ struct
 	~color:(GDraw.color canvas_properties.bg)
 	~packing:container#add () in
     object(self)
-      inherit GObj.widget container#as_widget
+      inherit GObj.widget container#as_widget as widget
       inherit observer ()
 
       method canvas_properties_changed props =
@@ -236,6 +201,10 @@ struct
 	} in
 	Gaux.may (fun props -> props#set canvas_properties) subject
       initializer
+	(* TODO We need to factor the detach in a higher-level abstraction *)
+	widget#misc#connect#destroy
+          ~callback:(fun () -> self#detach)
+	|> ignore;
 	self#attach props;
 	ignore [
 	    scale#connect#value_changed ~callback:self#notify_changed;
@@ -249,7 +218,7 @@ struct
       scale = 1.0;
     } in
   object(self)
-    inherit [t] SmartVariable.editable defaults
+    inherit [t] GUtil.variable defaults
     method as_variable =
       (self :> 'a GUtil.variable)
     method set_bg x =
@@ -261,12 +230,26 @@ struct
 	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
       in
       (unpack a) = (unpack b)
-    method create_editor =
-      (new editor self#as_variable :> t SmartVariable.observer)
   end
 
   let subject () =
     new subject
+
+  class controller ?variable () =
+  object
+    inherit [t, unit] SmartVariable.controller ?variable ()
+    method create_view () =
+      match subject with
+      | Some(v) -> (new editor v :> t SmartVariable.observer)
+      | None -> failwith "not implemented"
+    method callback_set v =
+      ()
+    method callback_changed v =
+      ()
+  end
+
+  let controller ~(variable : t #GUtil.variable) () =
+    new controller ~variable:(variable :> t GUtil.variable) ()
 
   class user canvas canvas_properties =
   object(self)
@@ -464,16 +447,19 @@ let lineprops color =
 
 class ['subject] chart () =
   let palette_name = "Spectrum" in
-  let editable_store = SmartVariable.editable_store () in
+  let controllable_store = SmartVariable.controllable_store () in
   let canvas_properties = CanvasProperties.subject () in
-  let _ =
-    SmartVariable.pack
-      ~store:editable_store
-      ~editable:canvas_properties
-      ~name:"Canvas properties"
+  let canvas_properties_controller =
+    CanvasProperties.controller ~variable:canvas_properties ()
+  in
+  let () = SmartVariable.pack
+	     ~store:controllable_store
+	     ~name:"Canvas properties"
+	     ~item:canvas_properties_controller
+	     ()
   in
   let vbox = GPack.vbox () in
-  let _editor = editable_store#editor ~packing:vbox#add () in
+  let _editor = controllable_store#view ~packing:vbox#add () in
   let view = GBin.scrolled_window
                ~packing:vbox#add
                ~hpolicy:`AUTOMATIC
@@ -500,10 +486,11 @@ class ['subject] chart () =
     val canvas_properties_user =
       new CanvasProperties.user canvas canvas_properties#as_variable
     method attach_canvas_properties props =
-      canvas_properties_user#attach props
+      canvas_properties_user#attach props;
+      canvas_properties_controller#attach props
     initializer
       canvas#set_pixels_per_unit 5.0;
-      (* editable_store#popup; *)
+      controllable_store#popup;
   end
 
 let chart

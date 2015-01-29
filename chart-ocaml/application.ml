@@ -53,15 +53,17 @@ let mainwindow () =
   in
   (* Chart *)
   let canvas_properties = new Chart.CanvasProperties.subject in
+  let canvas_properties_controller =
+    Chart.CanvasProperties.controller ~variable:canvas_properties ()
+  in
   let _chart =
     Chart.chart
       ~packing:vbox#add
       ~canvas_properties:canvas_properties#as_variable
       ()
   in
-  let _canvas_properties_editor =
-    canvas_properties#editor ~packing:vbox#add ()
-  in
+  let _ = canvas_properties_controller#view ~packing:vbox#add () in
+  let _ = canvas_properties_controller#view ~packing:vbox#add () in
 
   (* Models *)
   let model1 = new Card.model card1 in
