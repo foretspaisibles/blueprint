@@ -226,23 +226,6 @@ struct
 	  ];
   end
 
-
-  let editor
-      ?packing
-      ?canvas_properties
-      () =
-  let open GHelper.Maybe.Operator in
-  let apply_on_widget f x =
-    f (x :> GObj.widget)
-  in
-  let actual_canvas_properties =
-    match canvas_properties with
-    | Some(p) -> p
-    | None -> new subject
-  in
-  new editor actual_canvas_properties
-  |> GHelper.maybe_callback (packing >>= apply_on_widget)
-
   class subject =
     let defaults = {
       bg = `WHITE;
@@ -276,14 +259,33 @@ struct
   let controller ~(variable : t #GUtil.variable) () =
     new controller ~variable:(variable :> t GUtil.variable) ()
 
-  class user canvas canvas_properties =
+  class consumer canvas canvas_properties =
   object(self)
     inherit observer ~variable:canvas_properties ()
     method callback_set props =
       canvas#set_pixels_per_unit
-	       (canvas_properties_scale_unit *. props.scale);
+        (canvas_properties_scale_unit *. props.scale);
       canvas#misc#modify_bg [`NORMAL, props.bg];
   end
+
+  let editor
+      ?packing
+      ?canvas_properties
+      () =
+  let open GHelper.Maybe.Operator in
+  let apply_on_widget f x =
+    f (x :> GObj.widget)
+  in
+  let actual_canvas_properties =
+    match canvas_properties with
+    | Some(p) -> p
+    | None -> new subject
+  in
+  new editor actual_canvas_properties
+  |> GHelper.maybe_callback (packing >>= apply_on_widget)
+
+  let consumer canvas canvas_properties =
+    new consumer canvas canvas_properties
 end
 
 
@@ -492,10 +494,10 @@ class ['subject] chart () =
   in
   object
     inherit GObj.widget vbox#as_widget
-    val canvas_properties_user =
-      new CanvasProperties.user canvas canvas_properties
+    val canvas_properties_consumer =
+      CanvasProperties.consumer canvas canvas_properties
     method attach_canvas_properties props =
-      canvas_properties_user#attach props;
+      canvas_properties_consumer#attach props;
       canvas_properties_controller#attach props
     initializer
       canvas#set_pixels_per_unit 5.0;
