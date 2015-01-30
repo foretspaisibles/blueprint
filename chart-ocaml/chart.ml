@@ -77,16 +77,18 @@ struct
       | Some(s) -> self#attach s
   end
 
-  class virtual observer_detach_on_destroy (w : GObj.widget) =
+  class virtual observer_detach_on_destroy
+    ?(widget : GObj.widget option)
+    () =
   object (self)
     method virtual detach : unit
     initializer
-      w#misc#connect#destroy
-        ~callback:(fun () -> self#detach)
-      |> ignore;
+      match widget with
+      | None -> ()
+      | Some(w) ->
+	 w#misc#connect#destroy ~callback:(fun () -> self#detach)
+	 |> ignore
   end
-
-
 
   class virtual ['a, 'b] controller ?variable () =
   object (self)
@@ -165,9 +167,10 @@ struct
     scale: float;
   }
 
-  class virtual observer ?variable () =
+  class virtual observer ?variable ?widget () =
     object (self)
       inherit [t] SmartVariable.observer_trait ?variable ()
+      inherit SmartVariable.observer_detach_on_destroy ?widget ()
       method virtual canvas_properties_changed : t -> unit
       method callback_changed props =
 	self#canvas_properties_changed props
@@ -175,8 +178,8 @@ struct
 	self#canvas_properties_changed props
     end
 
-  class editor props =
-    let canvas_properties = props#get in
+  class editor ~variable =
+    let canvas_properties = variable#get in
     let container = GPack.hbox () in
     let scale =
       GData.adjustment
@@ -200,8 +203,7 @@ struct
 	~packing:container#add () in
     object(self)
       inherit GObj.widget container#as_widget as widget
-      inherit observer ()
-      inherit SmartVariable.observer_detach_on_destroy container#coerce
+      inherit observer ~widget:container#coerce ()
 
       method canvas_properties_changed props =
 	scale#set_value props.scale;
@@ -213,7 +215,7 @@ struct
 	} in
 	Gaux.may (fun props -> props#set canvas_properties) subject
       initializer
-	self#attach props;
+	self#attach variable;
 	ignore [
 	    scale#connect#value_changed ~callback:self#notify_changed;
 	    bgselect#connect#color_set ~callback:self#notify_changed;
@@ -227,12 +229,6 @@ struct
     } in
   object(self)
     inherit [t] GUtil.variable defaults
-    method as_variable =
-      (self :> 'a GUtil.variable)
-    method set_bg x =
-      self#set { self#get with bg = x }
-    method set_scale x =
-      self#set { self#get with scale = x }
     method private equal a b =
       let unpack x =
 	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
@@ -281,7 +277,7 @@ struct
     | Some(p) -> p
     | None -> new subject
   in
-  new editor actual_canvas_properties#as_variable
+  new editor actual_canvas_properties
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
 end
 
@@ -492,7 +488,7 @@ class ['subject] chart () =
   object
     inherit GObj.widget vbox#as_widget
     val canvas_properties_user =
-      new CanvasProperties.user canvas canvas_properties#as_variable
+      new CanvasProperties.user canvas canvas_properties
     method attach_canvas_properties props =
       canvas_properties_user#attach props;
       canvas_properties_controller#attach props

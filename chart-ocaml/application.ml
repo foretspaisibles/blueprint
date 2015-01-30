@@ -59,7 +59,7 @@ let mainwindow () =
   let _chart =
     Chart.chart
       ~packing:vbox#add
-      ~canvas_properties:canvas_properties#as_variable
+      ~canvas_properties:canvas_properties
       ()
   in
   let _ = canvas_properties_controller#view ~packing:vbox#add () in
