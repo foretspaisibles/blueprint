@@ -90,6 +90,13 @@ struct
 	 |> ignore
   end
 
+  class virtual ['a] observer_handle_changed_as_set =
+  object (self)
+    method virtual callback_set : 'a -> unit
+    method callback_changed x =
+      self#callback_set x
+  end
+
   class virtual ['a, 'b] controller ?variable () =
   object (self)
     inherit ['a] observer_trait ?variable () as super
@@ -170,12 +177,8 @@ struct
   class virtual observer ?variable ?widget () =
     object (self)
       inherit [t] SmartVariable.observer_trait ?variable ()
+      inherit [t] SmartVariable.observer_handle_changed_as_set
       inherit SmartVariable.observer_detach_on_destroy ?widget ()
-      method virtual canvas_properties_changed : t -> unit
-      method callback_changed props =
-	self#canvas_properties_changed props
-      method callback_set props =
-	self#canvas_properties_changed props
     end
 
   class editor ~variable =
@@ -205,9 +208,10 @@ struct
       inherit GObj.widget container#as_widget as widget
       inherit observer ~widget:container#coerce ()
 
-      method canvas_properties_changed props =
+      method callback_set props =
 	scale#set_value props.scale;
 	bgselect#set_color (GDraw.color props.bg);
+
       method notify_changed () =
 	let canvas_properties = {
 	  scale = scale#value;
@@ -258,7 +262,7 @@ struct
   class user canvas canvas_properties =
   object(self)
     inherit observer ~variable:canvas_properties ()
-    method canvas_properties_changed props =
+    method callback_set props =
       canvas#set_pixels_per_unit
 	       (canvas_properties_scale_unit *. props.scale);
       canvas#misc#modify_bg [`NORMAL, props.bg];
