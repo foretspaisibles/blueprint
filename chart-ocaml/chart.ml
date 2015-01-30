@@ -77,6 +77,17 @@ struct
       | Some(s) -> self#attach s
   end
 
+  class virtual observer_detach_on_destroy (w : GObj.widget) =
+  object (self)
+    method virtual detach : unit
+    initializer
+      w#misc#connect#destroy
+        ~callback:(fun () -> self#detach)
+      |> ignore;
+  end
+
+
+
   class virtual ['a, 'b] controller ?variable () =
   object (self)
     inherit ['a] observer_trait ?variable () as super
@@ -190,6 +201,7 @@ struct
     object(self)
       inherit GObj.widget container#as_widget as widget
       inherit observer ()
+      inherit SmartVariable.observer_detach_on_destroy container#coerce
 
       method canvas_properties_changed props =
 	scale#set_value props.scale;
@@ -201,10 +213,6 @@ struct
 	} in
 	Gaux.may (fun props -> props#set canvas_properties) subject
       initializer
-	(* TODO We need to factor the detach in a higher-level abstraction *)
-	widget#misc#connect#destroy
-          ~callback:(fun () -> self#detach)
-	|> ignore;
 	self#attach props;
 	ignore [
 	    scale#connect#value_changed ~callback:self#notify_changed;
