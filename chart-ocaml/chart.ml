@@ -226,6 +226,23 @@ struct
 	  ];
   end
 
+
+  let editor
+      ?packing
+      ?canvas_properties
+      () =
+  let open GHelper.Maybe.Operator in
+  let apply_on_widget f x =
+    f (x :> GObj.widget)
+  in
+  let actual_canvas_properties =
+    match canvas_properties with
+    | Some(p) -> p
+    | None -> new subject
+  in
+  new editor actual_canvas_properties
+  |> GHelper.maybe_callback (packing >>= apply_on_widget)
+
   class subject =
     let defaults = {
       bg = `WHITE;
@@ -267,22 +284,6 @@ struct
 	       (canvas_properties_scale_unit *. props.scale);
       canvas#misc#modify_bg [`NORMAL, props.bg];
   end
-
-  let editor
-      ?packing
-      ?canvas_properties
-      () =
-  let open GHelper.Maybe.Operator in
-  let apply_on_widget f x =
-    f (x :> GObj.widget)
-  in
-  let actual_canvas_properties =
-    match canvas_properties with
-    | Some(p) -> p
-    | None -> new subject
-  in
-  new editor actual_canvas_properties
-  |> GHelper.maybe_callback (packing >>= apply_on_widget)
 end
 
 
