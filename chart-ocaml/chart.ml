@@ -212,7 +212,7 @@ struct
 	scale#set_value props.scale;
 	bgselect#set_color (GDraw.color props.bg);
 
-      method notify_changed () =
+      method private notify_changed () =
 	let canvas_properties = {
 	  scale = scale#value;
 	  bg = (`COLOR bgselect#color);
@@ -338,70 +338,138 @@ struct
      |];
   ]
 
-  type t = color array
+  type t = string
    and color = int * int * int
 
-  let find key =
-    List.assoc key predefined
-
-  let names () =
+  let list () =
     List.map fst predefined
 
-  let default_name () =
+  let default () =
     "Blue"
 
-  let default () =
-    find (default_name())
+  let get palette i =
+    let table = List.assoc palette predefined in
+    Array.get table i
 
   let get_as_string palette i =
-    let (r,g,b) = Array.get palette i in
+    let (r,g,b) = get palette i in
     sprintf "#%02x%02x%02x" r g b
 
-  class stylist palette =
+  let of_index i =
+    List.nth (list()) i
+
+  let to_index palette =
+    let rec loop left i =
+      match left with
+      | [] -> raise Not_found
+      | hd :: tl -> (if hd = palette then i else loop tl (succ i))
+    in
+    loop (list()) 0
+
+  class virtual observer ?variable ?widget () =
   object (self)
-    inherit [t] GUtil.variable palette
+    inherit [t] SmartVariable.observer_trait ?variable ()
+    inherit [t] SmartVariable.observer_handle_changed_as_set
+    inherit SmartVariable.observer_detach_on_destroy ?widget ()
   end
 
-  let stylist ?palette () =
-    let actual_palette =
-      match palette with
-      | Some(p) -> p
-      | None -> default()
-    in
-    new stylist actual_palette
-
-  class picker ?packing ?stylist () =
+  class editor ?packing ~variable =
     let (popdown, (store, colum)) =
       GEdit.combo_box_text
 	?packing
-	~strings:(names())
+	~strings:(list())
 	()
     in
   object (self)
     inherit GObj.widget popdown#as_widget
-    val mutable subject = stylist
+    inherit observer ~variable ~widget:(popdown#coerce) ()
+
+    method callback_set newpalette =
+      to_index newpalette
+      |> popdown#set_active
+
+    method private notify_changed () =
+      let newpalette = of_index popdown#active in
+      Gaux.may (fun v -> v#set newpalette) subject
+    initializer
+      self#attach variable;
+      ignore [
+	  popdown#connect#changed ~callback:self#notify_changed;
+	];
   end
 
-  let picker ?packing ?stylist () =
-    new picker ?packing ?stylist
+  class subject =
+    let defaults = (default()) in
+  object(self)
+    inherit [t] GUtil.variable defaults
+  end
+
+  let subject () =
+    new subject
+
+  class controller ?variable () =
+  object
+    inherit [t, unit] SmartVariable.controller ?variable ()
+    method create_view () =
+      match subject with
+      | Some(v) -> (new editor v :> t SmartVariable.observer)
+      | None -> failwith "not implemented"
+    method callback_set v =
+      ()
+    method callback_changed v =
+      ()
+  end
+
+  let controller ~(variable : t #GUtil.variable) () =
+    new controller ~variable:(variable :> t GUtil.variable) ()
+
+  class consumer stylist palette_variable =
+  object(self)
+    inherit observer ~variable:palette_variable ()
+    method callback_set palette =
+      stylist#set_palette palette
+  end
+
+  let editor
+      ?packing
+      ?palette
+      () =
+  let open GHelper.Maybe.Operator in
+  let apply_on_widget f x =
+    f (x :> GObj.widget)
+  in
+  let actual_palette =
+    match palette with
+    | Some(p) -> p
+    | None -> new subject
+  in
+  new editor actual_palette
+  |> GHelper.maybe_callback (packing >>= apply_on_widget)
+
+  let consumer stylist palette_variable =
+    new consumer stylist palette_variable
 end
 
 module Line =
 struct
-  class stylist palette_name i =
-    let palette =
-      try Palette.find palette_name
-      with Not_found -> Palette.default ()
-    in
-  object
+  class stylist ?line palette i =
+  object (self)
+    val mutable line_option = line
+    inherit Palette.observer ~variable:palette ()
     method props : GnomeCanvas.line_p list = [
       `WIDTH_PIXELS(4);
-      `FILL_COLOR(Palette.get_as_string palette i);
+      `FILL_COLOR(Palette.get_as_string palette#get i);
     ]
+    method callback_set _ =
+      match line_option with
+      | None -> ()
+      | Some(line) -> line#set self#props
+    method set_line (line : GnoCanvas.line) =
+      line_option <- Some(line)
   end
 
-  let stylist palette_name i =
-    new stylist palette_name i
+  let stylist palette i =
+    new stylist palette i
 
   class series (stylist : stylist) parent =
     let myself = GnoCanvas.group parent in
@@ -430,6 +498,7 @@ struct
       self#update
     method set_stylist newstylist =
       stylist <- newstylist;
+      stylist#set_line line;
       self#update
   end
 
@@ -437,7 +506,7 @@ struct
     let actualstylist =
       match stylist with
       | Some(s) -> s
-      | None -> new stylist (Palette.default_name()) 0
+      | None -> new stylist (Palette.subject()) 0
     in
     let answer =
       new series actualstylist parent
@@ -457,8 +526,8 @@ let lineprops color =
   [`SMOOTH(true); `WIDTH_PIXELS(4); `FILL_COLOR(color)]
 
 class ['subject] chart () =
-  let palette_name = "Spectrum" in
   let controllable_store = SmartVariable.controllable_store () in
+  (* Canvas properties *)
   let canvas_properties = CanvasProperties.subject () in
   let canvas_properties_controller =
     CanvasProperties.controller ~variable:canvas_properties ()
@@ -467,6 +536,17 @@ class ['subject] chart () =
 	     ~store:controllable_store
 	     ~name:"Canvas properties"
 	     ~item:canvas_properties_controller
+	     ()
+  in
+  (* Palette *)
+  let palette = Palette.subject () in
+  let palette_controller =
+    Palette.controller ~variable:palette ()
+  in
+  let () = SmartVariable.pack
+	     ~store:controllable_store
+	     ~name:"Palette"
+	     ~item:palette_controller
 	     ()
   in
   let vbox = GPack.vbox () in
@@ -478,8 +558,8 @@ class ['subject] chart () =
                ()
   in
   let canvas = GnoCanvas.canvas ~aa:true ~packing:view#add () in
-  let stylist1 = Line.stylist palette_name 0 in
-  let stylist2 = Line.stylist palette_name 1 in
+  let stylist1 = Line.stylist palette 0 in
+  let stylist2 = Line.stylist palette 1 in
   let _line1 =
     Line.series
       ~stylist:stylist1
@@ -499,6 +579,8 @@ class ['subject] chart () =
     method attach_canvas_properties props =
       canvas_properties_consumer#attach props;
       canvas_properties_controller#attach props
+    method attach_palette palette =
+      palette_controller#attach palette
     initializer
       canvas#set_pixels_per_unit 5.0;
       controllable_store#popup;
@@ -507,6 +589,7 @@ class ['subject] chart () =
 let chart
       ?packing
       ?canvas_properties
+      ?palette
       () =
   let open GHelper.Maybe.Operator in
   let apply_on_widget f x =
@@ -515,3 +598,4 @@ let chart
   new chart ()
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
   |> GHelper.maybe_apply canvas_properties (fun x -> x#attach_canvas_properties)
+  |> GHelper.maybe_apply palette (fun x -> x#attach_palette)
