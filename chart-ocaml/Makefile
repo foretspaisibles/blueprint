@@ -23,9 +23,6 @@ SRCS+=			application.ml
 EXTERNAL+=		ocaml.findlib:lablgtk2
 EXTERNAL+=		ocaml.findlib:lablgtk2.gnomecanvas
 
-test: ${PROGRAM}
-	./${PROGRAM}
-
 .include "ocaml.prog.mk"
 
 ### End of file `Makefile'
