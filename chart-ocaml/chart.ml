@@ -19,8 +19,8 @@ let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
 let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
 
 
-(* Smart variable *)
-module SmartVariable =
+(* Model View Controller *)
+module PatternMVC =
 struct
   class type ['a] observer =
   object
@@ -176,9 +176,9 @@ struct
 
   class virtual observer ?variable ?widget () =
     object (self)
-      inherit [t] SmartVariable.observer_trait ?variable ()
-      inherit [t] SmartVariable.observer_handle_changed_as_set
-      inherit SmartVariable.observer_detach_on_destroy ?widget ()
+      inherit [t] PatternMVC.observer_trait ?variable ()
+      inherit [t] PatternMVC.observer_handle_changed_as_set
+      inherit PatternMVC.observer_detach_on_destroy ?widget ()
     end
 
   class editor ~variable =
@@ -245,10 +245,10 @@ struct
 
   class controller ?variable () =
   object
-    inherit [t, unit] SmartVariable.controller ?variable ()
+    inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
       match subject with
-      | Some(v) -> (new editor v :> t SmartVariable.observer)
+      | Some(v) -> (new editor v :> t PatternMVC.observer)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
@@ -368,9 +368,9 @@ struct
 
   class virtual observer ?variable ?widget () =
   object (self)
-    inherit [t] SmartVariable.observer_trait ?variable ()
-    inherit [t] SmartVariable.observer_handle_changed_as_set
-    inherit SmartVariable.observer_detach_on_destroy ?widget ()
+    inherit [t] PatternMVC.observer_trait ?variable ()
+    inherit [t] PatternMVC.observer_handle_changed_as_set
+    inherit PatternMVC.observer_detach_on_destroy ?widget ()
   end
 
   class editor ?packing ~variable =
@@ -409,10 +409,10 @@ struct
 
   class controller ?variable () =
   object
-    inherit [t, unit] SmartVariable.controller ?variable ()
+    inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
       match subject with
-      | Some(v) -> (new editor v :> t SmartVariable.observer)
+      | Some(v) -> (new editor v :> t PatternMVC.observer)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
@@ -526,13 +526,13 @@ let lineprops color =
   [`SMOOTH(true); `WIDTH_PIXELS(4); `FILL_COLOR(color)]
 
 class ['subject] chart () =
-  let controllable_store = SmartVariable.controllable_store () in
+  let controllable_store = PatternMVC.controllable_store () in
   (* Canvas properties *)
   let canvas_properties = CanvasProperties.subject () in
   let canvas_properties_controller =
     CanvasProperties.controller ~variable:canvas_properties ()
   in
-  let () = SmartVariable.pack
+  let () = PatternMVC.pack
              ~store:controllable_store
              ~name:"Canvas properties"
              ~item:canvas_properties_controller
@@ -543,7 +543,7 @@ class ['subject] chart () =
   let palette_controller =
     Palette.controller ~variable:palette ()
   in
-  let () = SmartVariable.pack
+  let () = PatternMVC.pack
              ~store:controllable_store
              ~name:"Palette"
              ~item:palette_controller
