@@ -64,38 +64,36 @@ struct
     inherit ['a] observer
   end
 
-  class virtual ['a] observer_trait ?variable () =
+  class virtual ['a] abstract_observer ?model () =
     let attached = new GUtil.signal () in
     let detached = new GUtil.signal () in
   object (self)
-    val mutable subject = None
+    val mutable currentmodel = None
     val mutable signalids = []
-    method connect =
+    method connect : 'a observer_signals =
       new observer_signals ~attached ~detached
     method virtual callback_changed : 'a -> unit
     method virtual callback_set : 'a -> unit
     method private disconnect =
-      match subject with
+      match currentmodel with
       | None -> ()
-      | Some(s) -> ( List.iter s#connect#disconnect signalids;
+      | Some(m) -> ( List.iter m#connect#disconnect signalids;
                      signalids <- []; )
-    method attach (s : 'a GUtil.variable) =
+    method attach (m : 'a GUtil.variable) =
       self#disconnect;
-      subject <- Some(s);
+      currentmodel <- Some(m);
       signalids <- [
-        s#connect#set ~callback:self#callback_set;
-        s#connect#changed ~callback:self#callback_changed;
+        m#connect#set ~callback:self#callback_set;
+        m#connect#changed ~callback:self#callback_changed;
       ];
-      attached#call s;
-      self#callback_changed s#get
+      attached#call m;
+      self#callback_changed m#get
     method detach =
       self#disconnect;
-      subject <- None;
+      currentmodel <- None;
       detached#call ()
     initializer
-      match variable with
-      | None -> ()
-      | Some(s) -> self#attach s
+      Gaux.may self#attach model
   end
 
   class virtual observer_detach_on_destroy
@@ -120,7 +118,7 @@ struct
 
   class virtual ['a, 'b] controller ?variable () =
   object (self)
-    inherit ['a] observer_trait ?variable () as super
+    inherit ['a] abstract_observer ?model:variable () as super
     method virtual create_view : 'b -> 'a widget
     method private finalize_view (v : 'a widget) =
       self#connect#attached
@@ -197,7 +195,7 @@ struct
 
   class virtual observer ?variable ?widget () =
     object (self)
-      inherit [t] PatternMVC.observer_trait ?variable ()
+      inherit [t] PatternMVC.abstract_observer ?model:variable ()
       inherit [t] PatternMVC.observer_handle_changed_as_set
       inherit PatternMVC.observer_detach_on_destroy ?widget ()
     end
@@ -238,7 +236,7 @@ struct
           scale = scale#value;
           bg = (`COLOR bgselect#color);
         } in
-        Gaux.may (fun props -> props#set canvas_properties) subject
+        Gaux.may (fun props -> props#set canvas_properties) currentmodel
       initializer
         self#attach variable;
         ignore [
@@ -268,7 +266,7 @@ struct
   object
     inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
-      match subject with
+      match currentmodel with
       | Some(v) -> (new editor v :> t PatternMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
@@ -389,7 +387,7 @@ struct
 
   class virtual observer ?variable ?widget () =
   object (self)
-    inherit [t] PatternMVC.observer_trait ?variable ()
+    inherit [t] PatternMVC.abstract_observer ?model:variable ()
     inherit [t] PatternMVC.observer_handle_changed_as_set
     inherit PatternMVC.observer_detach_on_destroy ?widget ()
   end
@@ -411,7 +409,7 @@ struct
 
     method private notify_changed () =
       let newpalette = of_index popdown#active in
-      Gaux.may (fun v -> v#set newpalette) subject
+      Gaux.may (fun v -> v#set newpalette) currentmodel
     initializer
       self#attach variable;
       ignore [
@@ -432,7 +430,7 @@ struct
   object
     inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
-      match subject with
+      match currentmodel with
       | Some(v) -> (new editor v :> t PatternMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
