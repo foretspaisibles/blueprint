@@ -96,17 +96,13 @@ struct
       Gaux.may self#attach model
   end
 
-  class virtual observer_detach_on_destroy
-    ?(widget : GObj.widget option)
-    () =
+  class virtual trait_detach_on_destroy =
   object (self)
+    method virtual coerce : GObj.widget
     method virtual detach : unit
     initializer
-      match widget with
-      | None -> ()
-      | Some(w) ->
-         w#misc#connect#destroy ~callback:(fun () -> self#detach)
-         |> ignore
+      self#coerce#misc#connect#destroy ~callback:(fun () -> self#detach)
+      |> ignore
   end
 
   class virtual ['a] observer_handle_changed_as_set =
@@ -182,23 +178,56 @@ struct
     store#add (controllable_item ~item ~name typ)
 end
 
+
+module ChartMVC =
+struct
+  class virtual ['a] observer ?variable () =
+  object (self)
+    inherit ['a] PatternMVC.abstract_observer ?model:variable ()
+    inherit ['a] PatternMVC.observer_handle_changed_as_set
+  end
+
+  class virtual ['a] widget ?variable () =
+  object
+    inherit ['a] observer ?variable ()
+    inherit PatternMVC.trait_detach_on_destroy
+  end
+
+  module type P =
+  sig
+    type t
+  end
+
+  module Macro(Parameter:P) =
+  struct
+    class virtual _observer ?variable () =
+    object
+      inherit [Parameter.t] observer ?variable ()
+    end
+    class virtual _widget ?variable () =
+    object
+      inherit [Parameter.t] widget ?variable ()
+    end
+
+    class virtual observer = _observer
+    class virtual widget = _widget
+  end
+end
+
 (* Canvas properties *)
 module CanvasProperties =
 struct
 
   let canvas_properties_scale_unit =
     4.0
-  type t = {
+
+  type canvas_properties = {
     bg: GDraw.color;
     scale: float;
   }
 
-  class virtual observer ?variable ?widget () =
-    object (self)
-      inherit [t] PatternMVC.abstract_observer ?model:variable ()
-      inherit [t] PatternMVC.observer_handle_changed_as_set
-      inherit PatternMVC.observer_detach_on_destroy ?widget ()
-    end
+  type t = canvas_properties
+  include ChartMVC.Macro(struct type t = canvas_properties end)
 
   class editor ~variable =
     let canvas_properties = variable#get in
@@ -225,7 +254,7 @@ struct
         ~packing:container#add () in
     object(self)
       inherit GObj.widget container#as_widget as widget
-      inherit observer ~widget:container#coerce ()
+      inherit [t] ChartMVC.widget ()
 
       method callback_set props =
         scale#set_value props.scale;
@@ -280,7 +309,7 @@ struct
 
   class consumer canvas canvas_properties =
   object(self)
-    inherit observer ~variable:canvas_properties ()
+    inherit [t] ChartMVC.observer ~variable:canvas_properties ()
     method callback_set props =
       canvas#set_pixels_per_unit
         (canvas_properties_scale_unit *. props.scale);
@@ -357,8 +386,11 @@ struct
      |];
   ]
 
-  type t = string
+  type palette = string
    and color = int * int * int
+
+  type t = palette
+  include ChartMVC.Macro(struct type t = palette end)
 
   let list () =
     List.map fst predefined
@@ -385,12 +417,7 @@ struct
     in
     loop (list()) 0
 
-  class virtual observer ?variable ?widget () =
-  object (self)
-    inherit [t] PatternMVC.abstract_observer ?model:variable ()
-    inherit [t] PatternMVC.observer_handle_changed_as_set
-    inherit PatternMVC.observer_detach_on_destroy ?widget ()
-  end
+
 
   class editor ?packing ~variable =
     let (popdown, (store, colum)) =
@@ -401,7 +428,7 @@ struct
     in
   object (self)
     inherit GObj.widget popdown#as_widget
-    inherit observer ~variable ~widget:(popdown#coerce) ()
+    inherit [t] ChartMVC.observer ~variable ()
 
     method callback_set newpalette =
       to_index newpalette
@@ -444,7 +471,7 @@ struct
 
   class consumer stylist palette_variable =
   object(self)
-    inherit observer ~variable:palette_variable ()
+    inherit [t] ChartMVC.observer ~variable:palette_variable ()
     method callback_set palette =
       stylist#set_palette palette
   end
