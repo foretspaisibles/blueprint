@@ -57,13 +57,13 @@ struct
       match subject with
       | None -> ()
       | Some(s) -> ( List.iter s#connect#disconnect signalids;
-		     signalids <- []; )
+                     signalids <- []; )
     method attach (s : 'a GUtil.variable) =
       self#disconnect;
       subject <- Some(s);
       signalids <- [
-	s#connect#set ~callback:self#callback_set;
-	s#connect#changed ~callback:self#callback_changed;
+        s#connect#set ~callback:self#callback_set;
+        s#connect#changed ~callback:self#callback_changed;
       ];
       attached#call s;
       self#callback_changed s#get
@@ -86,8 +86,8 @@ struct
       match widget with
       | None -> ()
       | Some(w) ->
-	 w#misc#connect#destroy ~callback:(fun () -> self#detach)
-	 |> ignore
+         w#misc#connect#destroy ~callback:(fun () -> self#detach)
+         |> ignore
   end
 
   class virtual ['a] observer_handle_changed_as_set =
@@ -147,10 +147,10 @@ struct
       |> GObj.pack_return ~packing ~show
     method popup =
       let w =
-	GWindow.window
-	  ~type_hint:`UTILITY
-	  ~show:true
-	  ()
+        GWindow.window
+          ~type_hint:`UTILITY
+          ~show:true
+          ()
       in
       self#view ~packing:w#add ~show:true ()
       |> ignore
@@ -186,44 +186,44 @@ struct
     let container = GPack.hbox () in
     let scale =
       GData.adjustment
-	~value:canvas_properties.scale
-	~lower:0.01
-	~upper:8.0
-	~step_incr:0.01
-	~page_incr:0.1
-	~page_size:0.0
-	()
+        ~value:canvas_properties.scale
+        ~lower:0.01
+        ~upper:8.0
+        ~step_incr:0.01
+        ~page_incr:0.1
+        ~page_size:0.0
+        ()
     in
     let _scaleselect =
       GRange.scale
-	`HORIZONTAL
-	~adjustment:scale
-	~digits:2
-	~packing:container#add () in
+        `HORIZONTAL
+        ~adjustment:scale
+        ~digits:2
+        ~packing:container#add () in
     let bgselect =
       GButton.color_button
-	~color:(GDraw.color canvas_properties.bg)
-	~packing:container#add () in
+        ~color:(GDraw.color canvas_properties.bg)
+        ~packing:container#add () in
     object(self)
       inherit GObj.widget container#as_widget as widget
       inherit observer ~widget:container#coerce ()
 
       method callback_set props =
-	scale#set_value props.scale;
-	bgselect#set_color (GDraw.color props.bg);
+        scale#set_value props.scale;
+        bgselect#set_color (GDraw.color props.bg);
 
       method private notify_changed () =
-	let canvas_properties = {
-	  scale = scale#value;
-	  bg = (`COLOR bgselect#color);
-	} in
-	Gaux.may (fun props -> props#set canvas_properties) subject
+        let canvas_properties = {
+          scale = scale#value;
+          bg = (`COLOR bgselect#color);
+        } in
+        Gaux.may (fun props -> props#set canvas_properties) subject
       initializer
-	self#attach variable;
-	ignore [
-	    scale#connect#value_changed ~callback:self#notify_changed;
-	    bgselect#connect#color_set ~callback:self#notify_changed;
-	  ];
+        self#attach variable;
+        ignore [
+            scale#connect#value_changed ~callback:self#notify_changed;
+            bgselect#connect#color_set ~callback:self#notify_changed;
+          ];
   end
 
   class subject =
@@ -235,7 +235,7 @@ struct
     inherit [t] GUtil.variable defaults
     method private equal a b =
       let unpack x =
-	(Gdk.Color.pixel (GDraw.color x.bg), x.scale)
+        (Gdk.Color.pixel (GDraw.color x.bg), x.scale)
       in
       (unpack a) = (unpack b)
   end
@@ -376,9 +376,9 @@ struct
   class editor ?packing ~variable =
     let (popdown, (store, colum)) =
       GEdit.combo_box_text
-	?packing
-	~strings:(list())
-	()
+        ?packing
+        ~strings:(list())
+        ()
     in
   object (self)
     inherit GObj.widget popdown#as_widget
@@ -394,8 +394,8 @@ struct
     initializer
       self#attach variable;
       ignore [
-	  popdown#connect#changed ~callback:self#notify_changed;
-	];
+          popdown#connect#changed ~callback:self#notify_changed;
+        ];
   end
 
   class subject =
@@ -475,9 +475,9 @@ struct
     let myself = GnoCanvas.group parent in
     let unpack xypoints =
       let loop i =
-	match i mod 2 = 0, i/2 with
-	| true, k -> Array.get xypoints k |> fst
-	| false, k -> Array.get xypoints k |> snd |> (~-.)
+        match i mod 2 = 0, i/2 with
+        | true, k -> Array.get xypoints k |> fst
+        | false, k -> Array.get xypoints k |> snd |> (~-.)
       in
       Array.init (2*(Array.length xypoints)) loop
     in
@@ -490,9 +490,9 @@ struct
     method private update =
       line#destroy ();
       line <- GnoCanvas.line
-		~points
-		~props:stylist#props
-		myself
+                ~points
+                ~props:stylist#props
+                myself
     method set_points xypoints =
       points <- unpack xypoints;
       self#update
@@ -533,10 +533,10 @@ class ['subject] chart () =
     CanvasProperties.controller ~variable:canvas_properties ()
   in
   let () = SmartVariable.pack
-	     ~store:controllable_store
-	     ~name:"Canvas properties"
-	     ~item:canvas_properties_controller
-	     ()
+             ~store:controllable_store
+             ~name:"Canvas properties"
+             ~item:canvas_properties_controller
+             ()
   in
   (* Palette *)
   let palette = Palette.subject () in
@@ -544,10 +544,10 @@ class ['subject] chart () =
     Palette.controller ~variable:palette ()
   in
   let () = SmartVariable.pack
-	     ~store:controllable_store
-	     ~name:"Palette"
-	     ~item:palette_controller
-	     ()
+             ~store:controllable_store
+             ~name:"Palette"
+             ~item:palette_controller
+             ()
   in
   let vbox = GPack.vbox () in
   let _editor = controllable_store#view ~packing:vbox#add () in
