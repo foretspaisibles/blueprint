@@ -22,15 +22,21 @@ let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
 (* Model View Controller *)
 module PatternMVC =
 struct
-  class type ['a] observer =
-  object
-    inherit GObj.widget
-    method attach : 'a GUtil.variable -> unit
-    method detach : unit
-  end
 
+  (** The type of models representing a value of type ['a]. *)
+  class type ['a] model =
+    ['a] GUtil.variable
+
+  (** The type of signals for observers of a value of type ['a].
+
+  An observer is usually attached to a model, but it also might be
+  detached, usually displaying nothing or being inactive.
+
+  There is two connectible signals:
+  - The attached signal, parametrised by the model being attached.
+  - The detached signal, with a unit parameter. *)
   class ['a] observer_signals
-      ~(attached : 'a GUtil.variable GUtil.signal)
+      ~(attached : 'a model GUtil.signal)
       ~(detached : unit GUtil.signal) =
     let disconnect_list = [
       attached#disconnect;
@@ -41,6 +47,21 @@ struct
     inherit GUtil.ml_signals disconnect_list
     method attached = attached#connect ~after
     method detached = detached#connect ~after
+  end
+
+  (** The type of observers, watching a value of type ['a]. *)
+  class type ['a] observer =
+  object
+    method attach : 'a GUtil.variable -> unit
+    method detach : unit
+    method connect : 'a observer_signals
+  end
+
+  (** The type of observer widgets, watching a value of type ['a]. *)
+  class type ['a] widget =
+  object
+    inherit GObj.widget
+    inherit ['a] observer
   end
 
   class virtual ['a] observer_trait ?variable () =
@@ -100,8 +121,8 @@ struct
   class virtual ['a, 'b] controller ?variable () =
   object (self)
     inherit ['a] observer_trait ?variable () as super
-    method virtual create_view : 'b -> 'a observer
-    method private finalize_view (v : 'a observer) =
+    method virtual create_view : 'b -> 'a widget
+    method private finalize_view (v : 'a widget) =
       self#connect#attached
         ~callback:(fun model -> v#attach model)
       |> ignore;
@@ -248,7 +269,7 @@ struct
     inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
       match subject with
-      | Some(v) -> (new editor v :> t PatternMVC.observer)
+      | Some(v) -> (new editor v :> t PatternMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
@@ -412,7 +433,7 @@ struct
     inherit [t, unit] PatternMVC.controller ?variable ()
     method create_view () =
       match subject with
-      | Some(v) -> (new editor v :> t PatternMVC.observer)
+      | Some(v) -> (new editor v :> t PatternMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
