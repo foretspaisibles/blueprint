@@ -30,7 +30,7 @@ let mainwindow () =
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
   (* Chart *)
-  let _chart =
+  let chart =
     Chart.chart
       ~packing:vbox#add
       ()
@@ -38,6 +38,9 @@ let mainwindow () =
 
   let _ = factory#add_item "Connect" ~key:_C
 			   ~callback:(fun () -> print_endline "Connect!")
+  in
+  let _ = factory#add_item "Disonnect" ~key:_D
+			   ~callback:(fun () -> chart#disconnect())
   in
 
   (* Display the windows and enter Gtk+ main loop *)

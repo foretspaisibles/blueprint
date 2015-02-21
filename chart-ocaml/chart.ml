@@ -24,7 +24,7 @@ module PatternMVC =
 struct
 
   (** The type of models representing a value of type ['a]. *)
-  class type ['a] model =
+  class ['a] model =
     ['a] GUtil.variable
 
   (** The type of signals for observers of a value of type ['a].
@@ -52,7 +52,7 @@ struct
   (** The type of observers, watching a value of type ['a]. *)
   class type ['a] observer =
   object
-    method attach : 'a GUtil.variable -> unit
+    method attach : 'a model -> unit
     method detach : unit
     method connect : 'a observer_signals
   end
@@ -79,7 +79,7 @@ struct
       | None -> ()
       | Some(m) -> ( List.iter m#connect#disconnect signalids;
                      signalids <- []; )
-    method attach (m : 'a GUtil.variable) =
+    method attach (m : 'a model) =
       self#disconnect;
       currentmodel <- Some(m);
       signalids <- [
@@ -105,31 +105,97 @@ struct
       |> ignore
   end
 
-  class virtual ['a] observer_handle_changed_as_set =
+  class virtual ['a] trait_handle_changed_as_set =
   object (self)
     method virtual callback_set : 'a -> unit
     method callback_changed x =
       self#callback_set x
   end
 
-  class virtual ['a, 'b] controller ?variable () =
+  (** The type of controllers synchronising views and models
+  of type ['a]. It also acts as a view factory, parametrised by
+  a value of type ['b]. *)
+  class virtual ['a, 'b] controller ?model () =
   object (self)
-    inherit ['a] abstract_observer ?model:variable () as super
+    inherit ['a] abstract_observer ?model () as super
     method virtual create_view : 'b -> 'a widget
     method private finalize_view (v : 'a widget) =
       self#connect#attached
         ~callback:(fun model -> v#attach model)
       |> ignore;
-      v#coerce
+      v
     method view ?packing ?show typ =
       self#create_view typ
       |> GObj.pack_return ~packing ~show
       |> self#finalize_view
   end
+end
 
-  class controllable_item
+
+module ChartMVC =
+struct
+  class ['a] model =
+    ['a] PatternMVC.model
+
+  class virtual ['a] observer ?model () =
+  object (self)
+    inherit ['a] PatternMVC.abstract_observer ?model ()
+    inherit ['a] PatternMVC.trait_handle_changed_as_set
+  end
+
+  class virtual ['a] widget root ?model () =
+  object
+    inherit ['a] observer ?model () as observer
+    inherit GObj.widget root as widget
+    inherit PatternMVC.trait_detach_on_destroy
+    initializer
+      observer#connect#attached
+        ~callback:(fun _ -> widget#misc#set_sensitive true)
+      |> ignore;
+      observer#connect#detached
+        ~callback:(fun _ -> widget#misc#set_sensitive false)
+      |> ignore;
+  end
+
+  class virtual ['a, 'b] controller ?model () =
+    ['a, 'b] PatternMVC.controller ?model ()
+
+
+  module type P =
+  sig
+    type t
+  end
+
+  module Macro(Parameter:P) =
+  struct
+    class virtual _model var =
+    object
+      inherit [Parameter.t] model var
+    end
+
+    class virtual _observer ?model () =
+    object
+      inherit [Parameter.t] observer ?model ()
+    end
+
+    class virtual _widget root ?model () =
+    object
+      inherit [Parameter.t] widget root ?model ()
+    end
+
+    class virtual model = _model
+    class virtual observer = _observer
+    class virtual widget = _widget
+  end
+end
+
+
+module Controled =
+struct
+
+  class item
     ~(name : string)
-    ~(item : ('a, 'b)  controller)
+    ~(item : ('a, 'b) PatternMVC.controller)
     typ
     =
   object
@@ -139,11 +205,8 @@ struct
       name
   end
 
-  let controllable_item ~name ~item typ =
-    new controllable_item ~name ~item typ
-
-  class controllable_store =
-    let create_and_pack ?packing (item : controllable_item) =
+  class store =
+    let create_and_pack ?packing (item : item) =
       GMisc.label ~text:item#name ?packing ~show:true ()
       |> ignore;
       item#view ?packing ~show:true ()
@@ -151,7 +214,7 @@ struct
     in
   object (self)
     val mutable store = []
-    method add (item : controllable_item) =
+    method add (item : item) =
       store <- item :: store
     method private create_view =
       let box = GPack.vbox () in
@@ -171,49 +234,16 @@ struct
       |> ignore
   end
 
-  let controllable_store () =
-    new controllable_store
+  let item ~name ~item typ =
+    new item ~name ~item typ
+
+  let store () =
+    new store
 
   let pack ~store ~item ~name typ =
-    store#add (controllable_item ~item ~name typ)
+    store#add (new item ~item ~name typ)
+
 end
-
-
-module ChartMVC =
-struct
-  class virtual ['a] observer ?variable () =
-  object (self)
-    inherit ['a] PatternMVC.abstract_observer ?model:variable ()
-    inherit ['a] PatternMVC.observer_handle_changed_as_set
-  end
-
-  class virtual ['a] widget ?variable () =
-  object
-    inherit ['a] observer ?variable ()
-    inherit PatternMVC.trait_detach_on_destroy
-  end
-
-  module type P =
-  sig
-    type t
-  end
-
-  module Macro(Parameter:P) =
-  struct
-    class virtual _observer ?variable () =
-    object
-      inherit [Parameter.t] observer ?variable ()
-    end
-    class virtual _widget ?variable () =
-    object
-      inherit [Parameter.t] widget ?variable ()
-    end
-
-    class virtual observer = _observer
-    class virtual widget = _widget
-  end
-end
-
 (* Canvas properties *)
 module CanvasProperties =
 struct
@@ -227,7 +257,28 @@ struct
   }
 
   type t = canvas_properties
-  include ChartMVC.Macro(struct type t = canvas_properties end)
+  module Internal =
+    ChartMVC.Macro(struct type t = canvas_properties end)
+
+  class model =
+    let defaults = {
+      bg = `WHITE;
+      scale = 1.0;
+    } in
+  object(self)
+    inherit Internal.model defaults
+    method private equal a b =
+      let unpack x =
+        (Gdk.Color.pixel (GDraw.color x.bg), x.scale)
+      in
+      (unpack a) = (unpack b)
+  end
+
+  class virtual observer =
+    Internal.observer
+
+  class virtual widget =
+    Internal.widget
 
   class editor ~variable =
     let canvas_properties = variable#get in
@@ -253,8 +304,7 @@ struct
         ~color:(GDraw.color canvas_properties.bg)
         ~packing:container#add () in
     object(self)
-      inherit GObj.widget container#as_widget as widget
-      inherit [t] ChartMVC.widget ()
+      inherit widget container#as_widget () as widget
 
       method callback_set props =
         scale#set_value props.scale;
@@ -274,26 +324,12 @@ struct
           ];
   end
 
-  class subject =
-    let defaults = {
-      bg = `WHITE;
-      scale = 1.0;
-    } in
-  object(self)
-    inherit [t] GUtil.variable defaults
-    method private equal a b =
-      let unpack x =
-        (Gdk.Color.pixel (GDraw.color x.bg), x.scale)
-      in
-      (unpack a) = (unpack b)
-  end
+  let model () =
+    new model
 
-  let subject () =
-    new subject
-
-  class controller ?variable () =
+  class controller ?model () =
   object
-    inherit [t, unit] PatternMVC.controller ?variable ()
+    inherit [t, unit] PatternMVC.controller ?model ()
     method create_view () =
       match currentmodel with
       | Some(v) -> (new editor v :> t PatternMVC.widget)
@@ -304,12 +340,12 @@ struct
       ()
   end
 
-  let controller ~(variable : t #GUtil.variable) () =
-    new controller ~variable:(variable :> t GUtil.variable) ()
+  let controller ~(model : t #GUtil.variable) () =
+    new controller ~model:(model :> t GUtil.variable) ()
 
   class consumer canvas canvas_properties =
   object(self)
-    inherit [t] ChartMVC.observer ~variable:canvas_properties ()
+    inherit observer ~model:canvas_properties ()
     method callback_set props =
       canvas#set_pixels_per_unit
         (canvas_properties_scale_unit *. props.scale);
@@ -327,7 +363,7 @@ struct
   let actual_canvas_properties =
     match canvas_properties with
     | Some(p) -> p
-    | None -> new subject
+    | None -> new model
   in
   new editor actual_canvas_properties
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
@@ -390,7 +426,11 @@ struct
    and color = int * int * int
 
   type t = palette
-  include ChartMVC.Macro(struct type t = palette end)
+  module Internal =
+    ChartMVC.Macro(struct type t = palette end)
+
+  class virtual observer =
+    Internal.observer
 
   let list () =
     List.map fst predefined
@@ -419,7 +459,7 @@ struct
 
 
 
-  class editor ?packing ~variable =
+  class editor ?packing ~model =
     let (popdown, (store, colum)) =
       GEdit.combo_box_text
         ?packing
@@ -427,8 +467,7 @@ struct
         ()
     in
   object (self)
-    inherit GObj.widget popdown#as_widget
-    inherit [t] ChartMVC.observer ~variable ()
+    inherit Internal.widget popdown#as_widget ~model ()
 
     method callback_set newpalette =
       to_index newpalette
@@ -438,24 +477,24 @@ struct
       let newpalette = of_index popdown#active in
       Gaux.may (fun v -> v#set newpalette) currentmodel
     initializer
-      self#attach variable;
+      self#attach model;
       ignore [
           popdown#connect#changed ~callback:self#notify_changed;
         ];
   end
 
-  class subject =
+  class model =
     let defaults = (default()) in
   object(self)
-    inherit [t] GUtil.variable defaults
+    inherit Internal.model defaults
   end
 
-  let subject () =
-    new subject
+  let model () =
+    new model
 
-  class controller ?variable () =
+  class controller ?model () =
   object
-    inherit [t, unit] PatternMVC.controller ?variable ()
+    inherit [t, unit] PatternMVC.controller ?model ()
     method create_view () =
       match currentmodel with
       | Some(v) -> (new editor v :> t PatternMVC.widget)
@@ -466,12 +505,12 @@ struct
       ()
   end
 
-  let controller ~(variable : t #GUtil.variable) () =
-    new controller ~variable:(variable :> t GUtil.variable) ()
+  let controller ~(model : t #GUtil.variable) () =
+    new controller ~model:(model :> t GUtil.variable) ()
 
   class consumer stylist palette_variable =
   object(self)
-    inherit [t] ChartMVC.observer ~variable:palette_variable ()
+    inherit Internal.observer ~model:palette_variable ()
     method callback_set palette =
       stylist#set_palette palette
   end
@@ -487,7 +526,7 @@ struct
   let actual_palette =
     match palette with
     | Some(p) -> p
-    | None -> new subject
+    | None -> new model
   in
   new editor actual_palette
   |> GHelper.maybe_callback (packing >>= apply_on_widget)
@@ -501,7 +540,7 @@ struct
   class stylist ?line palette i =
   object (self)
     val mutable line_option = line
-    inherit Palette.observer ~variable:palette ()
+    inherit Palette.observer ~model:palette ()
     method props : GnomeCanvas.line_p list = [
       `WIDTH_PIXELS(4);
       `FILL_COLOR(Palette.get_as_string palette#get i);
@@ -552,7 +591,7 @@ struct
     let actualstylist =
       match stylist with
       | Some(s) -> s
-      | None -> new stylist (Palette.subject()) 0
+      | None -> new stylist (Palette.model()) 0
     in
     let answer =
       new series actualstylist parent
@@ -572,31 +611,32 @@ let lineprops color =
   [`SMOOTH(true); `WIDTH_PIXELS(4); `FILL_COLOR(color)]
 
 class ['subject] chart () =
-  let controllable_store = PatternMVC.controllable_store () in
+  let controled_store = Controled.store () in
   (* Canvas properties *)
-  let canvas_properties = CanvasProperties.subject () in
+  let canvas_properties = CanvasProperties.model () in
   let canvas_properties_controller =
-    CanvasProperties.controller ~variable:canvas_properties ()
+    CanvasProperties.controller ~model:canvas_properties ()
   in
-  let () = PatternMVC.pack
-             ~store:controllable_store
+  let () = Controled.pack
+             ~store:controled_store
              ~name:"Canvas properties"
              ~item:canvas_properties_controller
              ()
   in
   (* Palette *)
-  let palette = Palette.subject () in
+  let palette = Palette.model () in
   let palette_controller =
-    Palette.controller ~variable:palette ()
+    Palette.controller ~model:palette ()
   in
-  let () = PatternMVC.pack
-             ~store:controllable_store
+  let () = Controled.pack
+             ~store:controled_store
              ~name:"Palette"
              ~item:palette_controller
              ()
   in
   let vbox = GPack.vbox () in
-  let _editor = controllable_store#view ~packing:vbox#add () in
+  let _editor = controled_store#view ~packing:vbox#add () in
+  let palette_editor = palette_controller#view ~packing:vbox#add () in
   let view = GBin.scrolled_window
                ~packing:vbox#add
                ~hpolicy:`AUTOMATIC
@@ -627,9 +667,11 @@ class ['subject] chart () =
       canvas_properties_controller#attach props
     method attach_palette palette =
       palette_controller#attach palette
+    method disconnect () =
+      palette_editor#detach
     initializer
       canvas#set_pixels_per_unit 5.0;
-      controllable_store#popup;
+      controled_store#popup;
   end
 
 let chart
