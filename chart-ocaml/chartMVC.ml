@@ -34,8 +34,24 @@ object
     |> ignore;
 end
 
+
+(** The type of controllers synchronising views and models
+of type ['a]. It also acts as a view factory, parametrised by
+a value of type ['b]. *)
 class virtual ['a, 'b] controller ?model () =
-  ['a, 'b] PatternMVC.controller ?model ()
+object (self)
+  inherit ['a] PatternMVC.abstract_observer ?model () as super
+  method virtual create_view : 'b -> 'a widget
+  method private finalize_view (v : 'a widget) =
+    self#connect#attached
+      ~callback:(fun model -> v#attach model)
+    |> ignore;
+    v
+  method view ?packing ?show typ =
+    self#create_view typ
+    |> GObj.pack_return ~packing ~show
+    |> self#finalize_view
+end
 
 
 module type P =

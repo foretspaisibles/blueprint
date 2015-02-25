@@ -18,184 +18,12 @@ open Printf
 let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
 let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
 
-
-(* Model View Controller *)
-module PatternMVC =
-struct
-
-  (** The type of models representing a value of type ['a]. *)
-  class ['a] model =
-    ['a] GUtil.variable
-
-  (** The type of signals for observers of a value of type ['a].
-
-  An observer is usually attached to a model, but it also might be
-  detached, usually displaying nothing or being inactive.
-
-  There is two connectible signals:
-  - The attached signal, parametrised by the model being attached.
-  - The detached signal, with a unit parameter. *)
-  class ['a] observer_signals
-      ~(attached : 'a model GUtil.signal)
-      ~(detached : unit GUtil.signal) =
-    let disconnect_list = [
-      attached#disconnect;
-      detached#disconnect;
-    ]
-    in
-  object
-    inherit GUtil.ml_signals disconnect_list
-    method attached = attached#connect ~after
-    method detached = detached#connect ~after
-  end
-
-  (** The type of observers, watching a value of type ['a]. *)
-  class type ['a] observer =
-  object
-    method attach : 'a model -> unit
-    method detach : unit
-    method connect : 'a observer_signals
-  end
-
-  (** The type of observer widgets, watching a value of type ['a]. *)
-  class type ['a] widget =
-  object
-    inherit GObj.widget
-    inherit ['a] observer
-  end
-
-  class virtual ['a] abstract_observer ?model () =
-    let attached = new GUtil.signal () in
-    let detached = new GUtil.signal () in
-  object (self)
-    val mutable currentmodel = None
-    val mutable signalids = []
-    method connect : 'a observer_signals =
-      new observer_signals ~attached ~detached
-    method virtual callback_changed : 'a -> unit
-    method virtual callback_set : 'a -> unit
-    method private disconnect =
-      match currentmodel with
-      | None -> ()
-      | Some(m) -> ( List.iter m#connect#disconnect signalids;
-                     signalids <- []; )
-    method attach (m : 'a model) =
-      self#disconnect;
-      currentmodel <- Some(m);
-      signalids <- [
-        m#connect#set ~callback:self#callback_set;
-        m#connect#changed ~callback:self#callback_changed;
-      ];
-      attached#call m;
-      self#callback_changed m#get
-    method detach =
-      self#disconnect;
-      currentmodel <- None;
-      detached#call ()
-    initializer
-      Gaux.may self#attach model
-  end
-
-  class virtual trait_detach_on_destroy =
-  object (self)
-    method virtual coerce : GObj.widget
-    method virtual detach : unit
-    initializer
-      self#coerce#misc#connect#destroy ~callback:(fun () -> self#detach)
-      |> ignore
-  end
-
-  class virtual ['a] trait_handle_changed_as_set =
-  object (self)
-    method virtual callback_set : 'a -> unit
-    method callback_changed x =
-      self#callback_set x
-  end
-
-  (** The type of controllers synchronising views and models
-  of type ['a]. It also acts as a view factory, parametrised by
-  a value of type ['b]. *)
-  class virtual ['a, 'b] controller ?model () =
-  object (self)
-    inherit ['a] abstract_observer ?model () as super
-    method virtual create_view : 'b -> 'a widget
-    method private finalize_view (v : 'a widget) =
-      self#connect#attached
-        ~callback:(fun model -> v#attach model)
-      |> ignore;
-      v
-    method view ?packing ?show typ =
-      self#create_view typ
-      |> GObj.pack_return ~packing ~show
-      |> self#finalize_view
-  end
-end
-
-
-module ChartMVC =
-struct
-  class ['a] model =
-    ['a] PatternMVC.model
-
-  class virtual ['a] observer ?model () =
-  object (self)
-    inherit ['a] PatternMVC.abstract_observer ?model ()
-    inherit ['a] PatternMVC.trait_handle_changed_as_set
-  end
-
-  class virtual ['a] widget root ?model () =
-  object
-    inherit ['a] observer ?model () as observer
-    inherit GObj.widget root as widget
-    inherit PatternMVC.trait_detach_on_destroy
-    initializer
-      observer#connect#attached
-        ~callback:(fun _ -> widget#misc#set_sensitive true)
-      |> ignore;
-      observer#connect#detached
-        ~callback:(fun _ -> widget#misc#set_sensitive false)
-      |> ignore;
-  end
-
-  class virtual ['a, 'b] controller ?model () =
-    ['a, 'b] PatternMVC.controller ?model ()
-
-
-  module type P =
-  sig
-    type t
-  end
-
-  module Macro(Parameter:P) =
-  struct
-    class virtual _model var =
-    object
-      inherit [Parameter.t] model var
-    end
-
-    class virtual _observer ?model () =
-    object
-      inherit [Parameter.t] observer ?model ()
-    end
-
-    class virtual _widget root ?model () =
-    object
-      inherit [Parameter.t] widget root ?model ()
-    end
-
-    class virtual model = _model
-    class virtual observer = _observer
-    class virtual widget = _widget
-  end
-end
-
-
 module Controled =
 struct
 
   class item
     ~(name : string)
-    ~(item : ('a, 'b) PatternMVC.controller)
+    ~(item : ('a, 'b) ChartMVC.controller)
     typ
     =
   object
@@ -329,10 +157,10 @@ struct
 
   class controller ?model () =
   object
-    inherit [t, unit] PatternMVC.controller ?model ()
+    inherit [t, unit] ChartMVC.controller ?model ()
     method create_view () =
       match currentmodel with
-      | Some(v) -> (new editor v :> t PatternMVC.widget)
+      | Some(v) -> (new editor v :> t ChartMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
@@ -494,10 +322,10 @@ struct
 
   class controller ?model () =
   object
-    inherit [t, unit] PatternMVC.controller ?model ()
+    inherit [t, unit] ChartMVC.controller ?model ()
     method create_view () =
       match currentmodel with
-      | Some(v) -> (new editor v :> t PatternMVC.widget)
+      | Some(v) -> (new editor v :> t ChartMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
