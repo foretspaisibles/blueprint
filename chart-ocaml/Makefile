@@ -17,6 +17,8 @@
 PROGRAM=		test-chart
 
 SRCS+=			gHelper.ml
+SRCS+=			patternMVC.ml
+SRCS+=			chartMVC.ml
 SRCS+=			chart.ml
 SRCS+=			application.ml
 
