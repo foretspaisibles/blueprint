@@ -32,6 +32,9 @@ object
     observer#connect#detached
       ~callback:(fun _ -> widget#misc#set_sensitive false)
     |> ignore;
+    match model with
+      | None -> widget#misc#set_sensitive false
+      | Some(_) -> ()
 end
 
 
@@ -79,4 +82,29 @@ struct
   class virtual model = _model
   class virtual observer = _observer
   class virtual widget = _widget
+
+
+  let apply_observer_params ~cont finally ?model =
+    let finally_attach =
+      match model with
+      | None -> finally
+      | Some(m) -> (fun observer -> observer#attach m) :: finally
+    in
+    cont finally_attach
+
+  let apply_widget_params ~cont finally ?packing =
+    let finally_pack =
+      match packing with
+      | None -> finally
+      | Some(callback) -> (fun w -> callback w#coerce) :: finally
+    in
+    apply_observer_params ~cont finally_pack
+
+  let create_and_prepare create () =
+    let cont finally () =
+      let answer = create () in
+      List.iter (fun f -> f answer) finally;
+      answer
+    in
+    cont
 end

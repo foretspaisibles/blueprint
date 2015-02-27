@@ -72,6 +72,8 @@ struct
     store#add (new item ~item ~name typ)
 
 end
+
+
 (* Canvas properties *)
 module CanvasProperties =
 struct
@@ -84,15 +86,16 @@ struct
     scale: float;
   }
 
+  let defaults = {
+    bg = `WHITE;
+    scale = 1.0;
+  }
+
   type t = canvas_properties
   module Internal =
     ChartMVC.Macro(struct type t = canvas_properties end)
 
   class model =
-    let defaults = {
-      bg = `WHITE;
-      scale = 1.0;
-    } in
   object(self)
     inherit Internal.model defaults
     method private equal a b =
@@ -108,12 +111,11 @@ struct
   class virtual widget =
     Internal.widget
 
-  class editor ~variable =
-    let canvas_properties = variable#get in
+  class editor ?model () =
     let container = GPack.hbox () in
     let scale =
       GData.adjustment
-        ~value:canvas_properties.scale
+        ~value:defaults.scale
         ~lower:0.01
         ~upper:8.0
         ~step_incr:0.01
@@ -129,10 +131,10 @@ struct
         ~packing:container#add () in
     let bgselect =
       GButton.color_button
-        ~color:(GDraw.color canvas_properties.bg)
+        ~color:(GDraw.color defaults.bg)
         ~packing:container#add () in
     object(self)
-      inherit widget container#as_widget () as widget
+      inherit widget ?model container#as_widget () as widget
 
       method callback_set props =
         scale#set_value props.scale;
@@ -145,22 +147,26 @@ struct
         } in
         Gaux.may (fun props -> props#set canvas_properties) currentmodel
       initializer
-        self#attach variable;
         ignore [
             scale#connect#value_changed ~callback:self#notify_changed;
             bgselect#connect#color_set ~callback:self#notify_changed;
           ];
   end
 
-  let model () =
-    new model
+  let editor =
+    let cont finally () =
+      let answer = new editor () in
+      List.iter (fun f -> f answer) finally;
+      answer
+    in
+    Internal.apply_widget_params ~cont []
 
   class controller ?model () =
   object
     inherit [t, unit] ChartMVC.controller ?model ()
     method create_view () =
       match currentmodel with
-      | Some(v) -> (new editor v :> t ChartMVC.widget)
+      | Some(model) -> (editor ~model () :> t ChartMVC.widget)
       | None -> failwith "not implemented"
     method callback_set v =
       ()
@@ -180,21 +186,9 @@ struct
       canvas#misc#modify_bg [`NORMAL, props.bg];
   end
 
-  let editor
-      ?packing
-      ?canvas_properties
-      () =
-  let open GHelper.Maybe.Operator in
-  let apply_on_widget f x =
-    f (x :> GObj.widget)
-  in
-  let actual_canvas_properties =
-    match canvas_properties with
-    | Some(p) -> p
-    | None -> new model
-  in
-  new editor actual_canvas_properties
-  |> GHelper.maybe_callback (packing >>= apply_on_widget)
+
+  let model () =
+    new model
 
   let consumer canvas canvas_properties =
     new consumer canvas canvas_properties
