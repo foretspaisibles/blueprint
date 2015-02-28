@@ -105,6 +105,9 @@ struct
       (unpack a) = (unpack b)
   end
 
+  let model () =
+    new model
+
   class virtual observer =
     Internal.observer
 
@@ -154,6 +157,8 @@ struct
   end
 
   let editor =
+    Internal.widget (new editor)
+  let editor =
     let cont finally () =
       let answer = new editor () in
       List.iter (fun f -> f answer) finally;
@@ -165,9 +170,7 @@ struct
   object
     inherit [t, unit] ChartMVC.controller ?model ()
     method create_view () =
-      match currentmodel with
-      | Some(model) -> (editor ~model () :> t ChartMVC.widget)
-      | None -> failwith "not implemented"
+      (editor ?model:currentmodel () :> Internal.widget)
     method callback_set v =
       ()
     method callback_changed v =
@@ -177,21 +180,17 @@ struct
   let controller ~(model : t #GUtil.variable) () =
     new controller ~model:(model :> t GUtil.variable) ()
 
-  class consumer canvas canvas_properties =
+  class consumer_canvas canvas model =
   object(self)
-    inherit observer ~model:canvas_properties ()
+    inherit observer ~model ()
     method callback_set props =
       canvas#set_pixels_per_unit
         (canvas_properties_scale_unit *. props.scale);
       canvas#misc#modify_bg [`NORMAL, props.bg];
   end
 
-
-  let model () =
-    new model
-
-  let consumer canvas canvas_properties =
-    new consumer canvas canvas_properties
+  let consumer_canvas canvas model =
+    new consumer_canvas canvas model
 end
 
 
@@ -247,18 +246,24 @@ struct
   type palette = string
    and color = int * int * int
 
+  let default () =
+    "Blue"
+
   type t = palette
   module Internal =
     ChartMVC.Macro(struct type t = palette end)
 
+  class model =
+    Internal.model
+
+  let model () =
+    new model (default())
+
   class virtual observer =
     Internal.observer
 
-  let list () =
-    List.map fst predefined
-
-  let default () =
-    "Blue"
+  class virtual widget =
+    Internal.widget
 
   let get palette i =
     let table = List.assoc palette predefined in
@@ -267,6 +272,9 @@ struct
   let get_as_string palette i =
     let (r,g,b) = get palette i in
     sprintf "#%02x%02x%02x" r g b
+
+  let list () =
+    List.map fst predefined
 
   let of_index i =
     List.nth (list()) i
@@ -279,9 +287,7 @@ struct
     in
     loop (list()) 0
 
-
-
-  class editor ?packing ~model =
+  class editor ?packing ?model () =
     let (popdown, (store, colum)) =
       GEdit.combo_box_text
         ?packing
@@ -289,7 +295,7 @@ struct
         ()
     in
   object (self)
-    inherit Internal.widget popdown#as_widget ~model ()
+    inherit Internal.widget popdown#as_widget ?model ()
 
     method callback_set newpalette =
       to_index newpalette
@@ -299,28 +305,19 @@ struct
       let newpalette = of_index popdown#active in
       Gaux.may (fun v -> v#set newpalette) currentmodel
     initializer
-      self#attach model;
       ignore [
           popdown#connect#changed ~callback:self#notify_changed;
         ];
   end
 
-  class model =
-    let defaults = (default()) in
-  object(self)
-    inherit Internal.model defaults
-  end
-
-  let model () =
-    new model
+  let editor =
+    Internal.widget (new editor)
 
   class controller ?model () =
   object
     inherit [t, unit] ChartMVC.controller ?model ()
     method create_view () =
-      match currentmodel with
-      | Some(v) -> (new editor v :> t ChartMVC.widget)
-      | None -> failwith "not implemented"
+      (editor ?model:currentmodel () :> Internal.widget)
     method callback_set v =
       ()
     method callback_changed v =
@@ -336,22 +333,6 @@ struct
     method callback_set palette =
       stylist#set_palette palette
   end
-
-  let editor
-      ?packing
-      ?palette
-      () =
-  let open GHelper.Maybe.Operator in
-  let apply_on_widget f x =
-    f (x :> GObj.widget)
-  in
-  let actual_palette =
-    match palette with
-    | Some(p) -> p
-    | None -> new model
-  in
-  new editor actual_palette
-  |> GHelper.maybe_callback (packing >>= apply_on_widget)
 
   let consumer stylist palette_variable =
     new consumer stylist palette_variable
@@ -483,7 +464,7 @@ class ['subject] chart () =
   object
     inherit GObj.widget vbox#as_widget
     val canvas_properties_consumer =
-      CanvasProperties.consumer canvas canvas_properties
+      CanvasProperties.consumer_canvas canvas canvas_properties
     method attach_canvas_properties props =
       canvas_properties_consumer#attach props;
       canvas_properties_controller#attach props

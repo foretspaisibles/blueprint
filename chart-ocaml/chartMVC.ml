@@ -107,4 +107,12 @@ struct
       answer
     in
     cont
+
+  let widget create =
+    let cont finally () =
+      let answer = create () in
+      List.iter (fun f -> f answer) finally;
+      answer
+    in
+    apply_widget_params ~cont []
 end
