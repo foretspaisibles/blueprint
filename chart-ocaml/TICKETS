@@ -1,0 +1,4 @@
+- A ChartMVC.widget should be a PatternMVC.widget
+- The controller should be the same, not a copy & paste
+
+   We probably can fix this with a signature file.

@@ -158,13 +158,6 @@ struct
 
   let editor =
     Internal.widget (new editor)
-  let editor =
-    let cont finally () =
-      let answer = new editor () in
-      List.iter (fun f -> f answer) finally;
-      answer
-    in
-    Internal.apply_widget_params ~cont []
 
   class controller ?model () =
   object
@@ -327,16 +320,23 @@ struct
   let controller ~(model : t #GUtil.variable) () =
     new controller ~model:(model :> t GUtil.variable) ()
 
-  class consumer stylist palette_variable =
+  class consumer_stylist stylist model =
   object(self)
-    inherit Internal.observer ~model:palette_variable ()
+    inherit Internal.observer ~model ()
     method callback_set palette =
       stylist#set_palette palette
   end
 
   let consumer stylist palette_variable =
-    new consumer stylist palette_variable
+    new consumer_stylist stylist palette_variable
 end
+
+
+module Series_store =
+struct
+  
+end
+
 
 module Line =
 struct

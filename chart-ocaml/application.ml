@@ -35,7 +35,9 @@ let mainwindow () =
       ~packing:vbox#add
       ()
   in
-
+  let _editor =
+    Chart.CanvasProperties.editor ~packing:vbox#add ()
+  in
   let _ = factory#add_item "Connect" ~key:_C
 			   ~callback:(fun () -> print_endline "Connect!")
   in
