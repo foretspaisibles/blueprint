@@ -1,5 +1,6 @@
 configure
-Makefile.inc
+Makefile.config
 autom4te.cache/
 config.log
 config.status
+.product

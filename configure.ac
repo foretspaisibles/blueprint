@@ -14,8 +14,8 @@
 # are also available at
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
-AC_INIT(Library/Make/blueprint.init.mk)
-AC_SUBST([version], [0.1])
-AC_OUTPUT(Makefile.inc)
+AC_INIT(pm/timeline.mp)
+AC_CONFIG_FILES([Makefile.config])
+AC_OUTPUT
 
 ### End of file `configure.ac'
