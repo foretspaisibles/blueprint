@@ -15,7 +15,7 @@
 # http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
 
 PACKAGE=	blueprint
-VERSION=	0.0.2-current
+VERSION=		0.2.0-releng
 OFFICER=	michipili@gmail.com
 
 MODULE=		mpost.files:base
