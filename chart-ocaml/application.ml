@@ -1,18 +1,16 @@
 (* Application -- An application to test OCaml charts
 
-Author: Michael Grünewald
-Date: Sun Jan  4 23:03:23 CET 2015
+   Blueprint (https://github.com/michipili/blueprint)
+   This file is part of Blueprint
 
-Blueprint (https://github.com/michipili/blueprint)
-This file is part of Blueprint
+   Copyright © 2014–2015 Michael Grünewald
 
-Copyright © 2014–2015 Michael Grünewald
+   This file must be used under the terms of the CeCILL-B.
+   This source file is licensed as described in the file COPYING, which
+   you should have received as part of this distribution. The terms
+   are also available at
+   http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 
-This file must be used under the terms of the CeCILL-B.
-This source file is licensed as described in the file COPYING, which
-you should have received as part of this distribution. The terms
-are also available at
-http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 open GMain
 open GdkKeysyms
 
@@ -39,10 +37,10 @@ let mainwindow () =
     Chart.CanvasProperties.editor ~packing:vbox#add ()
   in
   let _ = factory#add_item "Connect" ~key:_C
-			   ~callback:(fun () -> print_endline "Connect!")
+      ~callback:(fun () -> print_endline "Connect!")
   in
   let _ = factory#add_item "Disonnect" ~key:_D
-			   ~callback:(fun () -> chart#disconnect())
+      ~callback:(fun () -> chart#disconnect())
   in
 
   (* Display the windows and enter Gtk+ main loop *)

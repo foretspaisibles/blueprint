@@ -1,8 +1,5 @@
 ### Makefile -- Blueprint chart
 
-# Author: Michael Grünewald
-# Date: Sun Jan  4 23:01:43 CET 2015
-
 # Blueprint (https://github.com/michipili/blueprint)
 # This file is part of Blueprint
 #
