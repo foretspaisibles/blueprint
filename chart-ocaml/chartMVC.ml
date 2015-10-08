@@ -14,15 +14,38 @@
 class ['a] model =
   ['a] PatternMVC.model
 
-class virtual ['a] observer ?model () =
+class type ['a] observer =
+  object
+    inherit ['a] PatternMVC.observer
+    method callback_changed : 'a -> unit
+    method callback_set : 'a -> unit
+  end
+
+class type ['a] widget =
+  object
+    inherit ['a] PatternMVC.widget
+    method callback_changed : 'a -> unit
+    method callback_set : 'a -> unit
+  end
+
+class type ['a, 'b] controller =
+  object
+    inherit ['a] PatternMVC.observer
+    method callback_changed : 'a -> unit
+    method callback_set : 'a -> unit
+    method create_view : 'b -> 'a widget
+    method view : ?packing:(GObj.widget -> unit) -> ?show:bool -> 'b -> 'a widget
+  end
+
+class virtual ['a] abstract_observer ?model () =
   object (self)
     inherit ['a] PatternMVC.abstract_observer ?model ()
     inherit ['a] PatternMVC.trait_handle_changed_as_set
   end
 
-class virtual ['a] widget root ?model () =
+class virtual ['a] abstract_widget root ?model () =
   object
-    inherit ['a] observer ?model () as observer
+    inherit ['a] abstract_observer ?model () as observer
     inherit GObj.widget root as widget
     inherit PatternMVC.trait_detach_on_destroy
     initializer
@@ -41,7 +64,7 @@ class virtual ['a] widget root ?model () =
 (** The type of controllers synchronising views and models
     of type ['a]. It also acts as a view factory, parametrised by
     a value of type ['b]. *)
-class virtual ['a, 'b] controller ?model () =
+class virtual ['a, 'b] abstract_controller ?model () =
   object (self)
     inherit ['a] PatternMVC.abstract_observer ?model () as super
     method virtual create_view : 'b -> 'a widget
@@ -64,25 +87,20 @@ end
 
 module Macro(Parameter:P) =
 struct
-  class virtual _model var =
+  class virtual macro_model var =
     object
       inherit [Parameter.t] model var
     end
 
-  class virtual _observer ?model () =
+  class virtual macro_observer ?model () =
     object
-      inherit [Parameter.t] observer ?model ()
+      inherit [Parameter.t] abstract_observer ?model ()
     end
 
-  class virtual _widget root ?model () =
+  class virtual macro_widget root ?model () =
     object
-      inherit [Parameter.t] widget root ?model ()
+      inherit [Parameter.t] abstract_widget root ?model ()
     end
-
-  class virtual model = _model
-  class virtual observer = _observer
-  class virtual widget = _widget
-
 
   let apply_observer_params ~cont finally ?model =
     let finally_attach =
