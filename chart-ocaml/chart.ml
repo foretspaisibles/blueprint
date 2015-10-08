@@ -291,15 +291,21 @@ class ['subject] chart () =
       ()
   in
   let vbox = GPack.vbox () in
-  let _editor = controled_store#view ~packing:vbox#add () in
-  let palette_editor = palette_controller#view ~packing:vbox#add () in
+  let _editor = controled_store#view ~packing:(vbox#pack ~fill:false) () in
+  let palette_editor = palette_controller#view
+      ~packing:(vbox#pack ~fill:false) () in
   let view = GBin.scrolled_window
-      ~packing:vbox#add
+      ~packing:(vbox#pack ~expand:true)
       ~hpolicy:`AUTOMATIC
       ~vpolicy:`AUTOMATIC
       ()
   in
   let canvas = GnoCanvas.canvas ~aa:true ~packing:view#add () in
+  let space_allocation =
+    ChartSpaceAllocation.space_allocation
+      ~xmin:0.0 ~xmax:140.0
+      ~ymin:0.0 ~ymax:100.0 canvas#root
+  in
   let stylist1 = Line.stylist palette 0 in
   let stylist2 = Line.stylist palette 1 in
   let _line1 =
@@ -327,6 +333,9 @@ class ['subject] chart () =
       palette_editor#detach
     initializer
       canvas#set_pixels_per_unit 5.0;
+      canvas#set_scroll_region
+        ~x1:0.0 ~x2:140.0
+        ~y1:(-.100.0) ~y2:100.0;
       controled_store#popup;
   end
 
