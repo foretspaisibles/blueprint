@@ -59,12 +59,12 @@ sig
     range_min: float option;
     range_max: float option;
     range_step: float option;
-    categories: (float * float) array;
+    categories: (float * float) array option;
     logarithmic: bool;
     grid: bool;
     tick_layout: tick_layout;
     tick_labels: tick_labels option;
-    tick_marks: tick_mark_style option;
+    tick_mark_style: tick_mark_style option;
     tick_label_angle: tick_label_angle;
   }
 
@@ -85,6 +85,15 @@ sig
     | Horizontal
     | Vertical
     | Diagonal
+
+  val make :
+    ?title:string ->
+    ?range_min:float -> ?range_max:float -> ?range_step:float ->
+    ?categories:(float*float) array ->
+    ?logarithmic:bool -> ?grid:bool ->
+    ?tick_layout:tick_layout -> ?tick_labels:tick_labels ->
+    ?tick_mark_style:tick_mark_style -> ?tick_label_angle:tick_label_angle ->
+    unit -> t
 end
 
 (** Data specification. *)
@@ -123,7 +132,7 @@ type t = {
   subtitle: string option;
   x_axis: Axis.t;
   y_axis: Axis.t;
-  legend: Legend.t;
-  tooltip: Tooltip.t;
+  legend: Legend.t option;
+  tooltip: Tooltip.t option;
   series: Series.t list;
 }

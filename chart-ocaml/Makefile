@@ -19,6 +19,7 @@ SRCS+=			chartMVC.ml
 SRCS+=			chartSpaceAllocation.ml
 SRCS+=			chartPalette.ml
 SRCS+=			chart.ml
+SRCS+=			gChart.ml
 SRCS+=			application.ml
 
 EXTERNAL+=		ocaml.findlib:lablgtk2

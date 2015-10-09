@@ -53,12 +53,12 @@ struct
     range_min: float option;
     range_max: float option;
     range_step: float option;
-    categories: (float * float) array;
+    categories: (float * float) array option;
     logarithmic: bool;
     grid: bool;
     tick_layout: tick_layout;
     tick_labels: tick_labels option;
-    tick_marks: tick_mark_style option;
+    tick_mark_style: tick_mark_style option;
     tick_label_angle: tick_label_angle;
   }
 
@@ -79,6 +79,28 @@ struct
     | Horizontal
     | Vertical
     | Diagonal
+
+  let make ?title
+    ?range_min ?range_max ?range_step
+    ?categories
+    ?(logarithmic = false) ?(grid = false)
+    ?(tick_layout = Auto) ?tick_labels
+    ?tick_mark_style ?(tick_label_angle = Horizontal)
+    () = {
+    title;
+    range_min;
+    range_max;
+    range_step;
+    categories;
+    logarithmic;
+    grid;
+    tick_layout;
+    tick_labels;
+    tick_mark_style;
+    tick_label_angle;
+  }
+
+
 end
 
 module Data =
@@ -114,7 +136,7 @@ type t = {
   subtitle: string option;
   x_axis: Axis.t;
   y_axis: Axis.t;
-  legend: Legend.t;
-  tooltip: Tooltip.t;
+  legend: Legend.t option;
+  tooltip: Tooltip.t option;
   series: Series.t list;
 }
