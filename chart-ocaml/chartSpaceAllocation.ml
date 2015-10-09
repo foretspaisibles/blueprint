@@ -40,8 +40,8 @@ class space_allocation
   let _title =
     GnoCanvas.rect
       ~x1:xmin ~x2:xmax
-      ~y1:(ymin +. title_gap)
-      ~y2:(ymin +. title_gap +. legend_height)
+      ~y1:(ymax +. title_gap)
+      ~y2:(ymax +. title_gap +. legend_height)
       ~fill_color:"red"
       parent
   in
