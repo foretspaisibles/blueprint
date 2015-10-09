@@ -1,4 +1,4 @@
-(* Chart -- Charts for OCaml and Gtk2
+(* Chart -- Plotting and charting library for OCaml
 
    Blueprint (https://github.com/michipili/blueprint)
    This file is part of Blueprint
@@ -12,42 +12,48 @@
    http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 
 
-module Tooltip =
-struct
+(** Chart tooltip specifications. *)
+module Tooltip :
+sig
 
+  (** The type of tooltips. *)
   type t = {
     value_prefix: string option;
     value_suffix: string option;
   }
 
-  let value_prefix prefix = {
-    value_prefix = Some(prefix);
-    value_suffix = None;
-  }
+  val value_prefix : string -> t
+  (** Create a tooltip specification with just a value prefix. *)
 
-  let value_suffix suffix = {
-    value_prefix = None;
-    value_suffix = Some(suffix);
-  }
+  val value_suffix : string -> t
+  (** Create a tooltip specification with just a value suffix. *)
 
-  let make prefix suffix = {
-    value_prefix = Some(prefix);
-    value_suffix = Some(suffix);
-  }
+  val make : string -> string -> t
+  (** Create a tooltip specification with both a value prefix and a
+      value suffix. *)
 end
 
-module Legend =
-struct
+(** Chart specifications. *)
+module Legend :
+sig
+
+  (** The type of legend specifications. *)
   type t = {
     position : position;
   }
+
+  (** The type of legend positions. *)
   and position =
     | Right
     | Bottom
 end
 
-module Axis =
-struct
+
+(** Axis specification *)
+module Axis :
+sig
+
+  (** The type of numeric axis specifications. *)
   type t = {
     title: string option;
     range_min: float option;
@@ -81,15 +87,17 @@ struct
     | Diagonal
 end
 
-module Data =
-struct
+(** Data specification. *)
+module Data :
+sig
   type t =
     | Points of (float * float) array
     | Series of float array
 end
 
-module Style =
-struct
+(** Style specification. *)
+module Style :
+sig
   type t =
     | Line
     | Marker
@@ -100,8 +108,9 @@ struct
     | HBar of float
 end
 
-module Series =
-struct
+(** Series specification. *)
+module Series :
+sig
   type t = {
     name: string;
     style: Style.t;

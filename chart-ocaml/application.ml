@@ -14,6 +14,23 @@
 open GMain
 open GdkKeysyms
 
+(*
+let chart1 =
+  Chart.make
+    ~title:"Monthly average temperature"
+    ~subtitle:"Source: Wordclimate.com"
+    ~x_axis:Chart.XAxis.(make Categories([|
+        "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun";
+        "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec"
+      |]))
+    ~y_axis:Chart.YAxis.(make ~title:"Temperature (°C)" Auto)
+    ~tooltip:Chart.Tooltip.(value_suffix "°C")
+    ~legend:Chart.Legend.(make [ Vertical ])
+  let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
+let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
+*)
+
+
 let mainwindow () =
   let window = GWindow.window ~width:320 ~height:240 ~title:"Test OCaml charts" () in
   let vbox = GPack.vbox ~packing:window#add () in
@@ -27,20 +44,11 @@ let mainwindow () =
   let factory = new GMenu.factory file_menu ~accel_group in
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
-  (* Chart *)
-  let chart =
-    Chart.chart
-      ~packing:vbox#add
-      ()
-  in
-  let _editor =
-    Chart.CanvasProperties.editor ~packing:(vbox#pack ~fill:false) ()
-  in
   let _ = factory#add_item "Connect" ~key:_C
       ~callback:(fun () -> print_endline "Connect!")
   in
   let _ = factory#add_item "Disonnect" ~key:_D
-      ~callback:(fun () -> chart#disconnect())
+      ~callback:(fun () -> print_endline "Disconnect")
   in
 
   (* Display the windows and enter Gtk+ main loop *)
