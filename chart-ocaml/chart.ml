@@ -100,7 +100,10 @@ struct
     tick_label_angle;
   }
 
-
+  let text_tick_labels ?(origin = 0.0) ?(step = 1.0) labels =
+    Text(Array.init
+           (Array.length labels)
+           (fun i -> ( labels.(i), origin +. ((float_of_int i) *. step))))
 end
 
 module Data =

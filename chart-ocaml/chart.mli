@@ -94,6 +94,11 @@ sig
     ?tick_layout:tick_layout -> ?tick_labels:tick_labels ->
     ?tick_mark_style:tick_mark_style -> ?tick_label_angle:tick_label_angle ->
     unit -> t
+
+  val text_tick_labels :
+    ?origin:float ->
+    ?step:float ->
+    string array -> tick_labels
 end
 
 (** Data specification. *)

@@ -14,22 +14,21 @@
 open GMain
 open GdkKeysyms
 
-(*
-let chart1 =
-  Chart.make
-    ~title:"Monthly average temperature"
-    ~subtitle:"Source: Wordclimate.com"
-    ~x_axis:Chart.XAxis.(make Categories([|
+
+let chart_temperature = Chart.{
+    title = Some("Monthly average temperature");
+    subtitle = Some("Source: Wordclimate.com");
+    x_axis =
+      Axis.make ~tick_labels:(Axis.text_tick_labels[|
         "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun";
         "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec"
-      |]))
-    ~y_axis:Chart.YAxis.(make ~title:"Temperature (°C)" Auto)
-    ~tooltip:Chart.Tooltip.(value_suffix "°C")
-    ~legend:Chart.Legend.(make [ Vertical ])
-  let series1 = [| 65.; 59.; 80.; 81.; 56.; 55.; 40.; |]
-let series2 = [| 28.; 48.; 40.; 19.; 86.; 27.; 90.; |]
-*)
-
+        |]) ();
+    y_axis =
+      Axis.make ~title:"Temperature (°C)" ();
+    tooltip = Some(Tooltip.(value_suffix "°C"));
+    legend = Some(Legend.{ position = Bottom; });
+    series = [];
+  }
 
 let mainwindow () =
   let window = GWindow.window ~width:320 ~height:240 ~title:"Test OCaml charts" () in
@@ -51,6 +50,14 @@ let mainwindow () =
       ~callback:(fun () -> print_endline "Disconnect")
   in
 
+  (* Chart *)
+  let _gchart =
+    GChart.chart
+      ~aa:true
+      ~chart:chart_temperature
+      ~packing:(vbox#pack ~expand:true)
+      ()
+  in
   (* Display the windows and enter Gtk+ main loop *)
   let _ =   window#connect#destroy ~callback:Main.quit in
   window#add_accel_group accel_group;
