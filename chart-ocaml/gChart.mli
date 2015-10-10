@@ -11,18 +11,12 @@
    are also available at
    http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 
-class group : GnomeCanvas.group Gtk.obj ->
-  object
-    inherit GnoCanvas.group
-    method chart : Chart.t
-    method set_chart : Chart.t -> unit
-  end
-
-val group : ?chart:Chart.t -> #GnoCanvas.canvas -> group
+val dummy : Chart.t
 
 class chart : GnomeCanvas.canvas Gtk.obj ->
   object
-    inherit GnoCanvas.canvas
+    inherit GObj.widget
+    val obj : Gtk.widget Gtk.obj
     method chart : Chart.t
     method set_chart : Chart.t -> unit
   end

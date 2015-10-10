@@ -39,30 +39,14 @@ let mainwindow () =
   let accel_group = factory#accel_group in
   let file_menu = factory#add_submenu "File" in
 
-  let canvas =
-    GnoCanvas.canvas
+  (* Chart *)
+  let gchart =
+    GChart.chart
       ~aa:true
+      ~chart:chart_temperature
       ~packing:(vbox#pack ~expand:true)
+      ~border_width:500
       ()
-  in
-
-  let rectangle n =
-    let offset s =
-      float_of_int(n*10) +. s
-    in
-    GnoCanvas.rect
-      ~x1:(offset 0.0)
-      ~x2:(offset 50.0)
-      ~y1:(offset 0.0)
-      ~y2:(offset 50.0)
-      ~fill_color:"cadet blue"
-      canvas#root
-  in
-
-  let count = ref 0 in
-  let pack () =
-    ignore(rectangle !count);
-    incr count;
   in
 
   (* File menu *)
@@ -70,28 +54,19 @@ let mainwindow () =
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
   let _ = factory#add_item "Connect" ~key:_C
-      ~callback:(fun () -> pack();
-                  List.iter (fun item -> Printf.printf "OID %d\n" item#get_oid) canvas#root#get_items;
-                  print_endline "Connect!")
+      ~callback:(fun () -> gchart#set_chart chart_temperature; print_endline "Connect!")
   in
   let _ = factory#add_item "Disconnect" ~key:_D
-      ~callback:(fun () ->
-          List.iter (fun item -> item#destroy ()) canvas#root#get_items;
-          print_endline "Disconnect")
+      ~callback:(fun () -> gchart#set_chart GChart.dummy; print_endline "Disconnect")
   in
 
-  (* Chart *)
-  let _gchart =
-    GChart.chart
-      ~aa:true
-      ~chart:chart_temperature
-      ~packing:(vbox#pack ~expand:true)
-      ()
-  in
   (* Display the windows and enter Gtk+ main loop *)
   let _ =   window#connect#destroy ~callback:Main.quit in
   window#add_accel_group accel_group;
   window#show ();
+  gchart#misc#modify_bg [
+    `NORMAL, `WHITE;
+  ];
   window
 
 let main () =
