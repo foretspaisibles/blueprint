@@ -28,6 +28,13 @@ let maybe_filtermap f lst =
 let maybe_filter lst =
   maybe_filtermap (fun x -> x) lst
 
+let bounds_as_props bounds = [
+  `X1(bounds.(0));
+  `Y1(bounds.(1));
+  `X2(bounds.(2));
+  `Y2(bounds.(3));
+]
+
 module Messages =
 struct
   let empty_chart () =
@@ -110,6 +117,35 @@ let dot ?x ?y ?(text = "\xe2\x9d\x96") ?size ?fill_color ?(props = []) parent =
   in
   GnoCanvas.text ?x ?y ?size ~text ~anchor:`CENTER ~props:actual_props parent
 
+let bbox item =
+  let group = GnoCanvas.group item#canvas#root in
+  let box = GnoCanvas.rect
+      ~props:(bounds_as_props item#get_bounds @ [
+          `FILL_COLOR_RGBA(0x2669A033l);
+        ])
+      group
+  in
+  let hotspot =
+    let (x,y) = item#i2w ~x:0.0 ~y:0.0 in
+    dot ~x ~y ~props:[ `FILL_COLOR_RGBA(0x2669A066l) ] group
+  in
+  let on_motion = function
+    |`MOTION_NOTIFY(_) ->
+      box#set (bounds_as_props item#get_bounds);
+      hotspot#set (let (x,y) = item#i2w ~x:0.0 ~y:0.0 in [`X(x); `Y(y)]);
+      false
+    | _ -> false
+  in
+  let on_destroy _ =
+    box#destroy();
+    hotspot#destroy();
+  in
+  ignore [
+    item#connect#destroy ~callback:on_destroy;
+    item#connect#event ~callback:on_motion;
+  ];
+  group
+
 class empty group =
   object(self)
     inherit GnoCanvas.group group#as_group
@@ -144,24 +180,8 @@ let empty parent =
   answer
 
 class title group =
-  let bounds_as_props bounds =
-    [
-      `X1(bounds.(0));
-      `Y1(bounds.(1));
-      `X2(bounds.(2));
-      `Y2(bounds.(3));
-    ]
-  in
   object(self)
     inherit GnoCanvas.group group#as_group
-    val _box = GnoCanvas.rect
-        ~fill_color:"red" group
-    val _hotspot =
-      dot ~x:0.0 ~y:0.0 ~fill_color:"blue" ~size:40_000 group
-    val _cross1 =
-      GnoCanvas.line ~fill_color:"yellow" ~points:[| -20.0; 0.0; 20.0; 0.0 |] group
-    val _cross2 =
-      GnoCanvas.line ~fill_color:"yellow" ~points:[| 0.0; -20.0; 0.0; 20.0 |] group
     val _title =
       GnoCanvas.text
         ~props:[
@@ -171,6 +191,7 @@ class title group =
           `SIZE_POINTS(20.0);
         ]
         group
+
     val _subtitle = GnoCanvas.text
         ~props:[
           `FILL_COLOR("gray");
@@ -206,7 +227,9 @@ class title group =
 
     method set_chart chart =
       maybe_do self#set_title chart.Chart.title;
-      maybe_do self#set_subtitle chart.Chart.subtitle
+      maybe_do self#set_subtitle chart.Chart.subtitle;
+      _title#set [ `X(0.0); `Y(0.0); `ANCHOR(`NORTH) ];
+      _subtitle#set [ `X(0.0); `Y(1.20*. _title#text_height); `ANCHOR(`NORTH) ];
 
     method update_position =
       let (x, y) =
@@ -214,12 +237,9 @@ class title group =
           ~winx:(float_of_int(group#canvas#width / 2))
           ~winy:(0.0)
       in
-      _title#set [ `X(x); `Y(y) ];
-      _subtitle#set [ `X(x); `Y(y +. 1.20*. _title#text_height) ];
-      _box#set (bounds_as_props self#get_bounds);
+      self#set [`X(x); `Y(y) ];
 
     initializer
-      _box#show();
       ignore [
         group#canvas#misc#connect#size_allocate
           ~callback:(fun _ -> self#update_position);
@@ -278,6 +298,7 @@ class chart gnome_canvas =
       _title#set_chart c;
       self#redraw
     initializer
+      ignore(bbox _title);
       self#misc#modify_bg [
         `NORMAL, `WHITE;
       ];
