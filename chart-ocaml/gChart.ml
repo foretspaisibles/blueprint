@@ -253,11 +253,90 @@ let title parent =
   answer
 
 class legend group =
+  let palette =
+    palette "Blue"
+  in
+  let half_hint_size = 5.0 in
+  let sep1 = 10.0 in
+  let sep2 = 15.0 in
+  let make_hint (i, name) =
+    GnoCanvas.rect ~props:[
+      `FILL_COLOR(palette#get_as_string i);
+      `OUTLINE_COLOR("black");
+      `WIDTH_PIXELS(1);
+      `X1(~-. half_hint_size);
+      `Y1(~-. half_hint_size);
+      `X2(    half_hint_size);
+      `Y2(    half_hint_size);
+    ] group,
+    GnoCanvas.text ~props:[
+      `TEXT(name);
+      `ANCHOR(`WEST);
+      `SIZE_POINTS(12.0);
+      `FILL_COLOR("black");
+    ] group
+  in
+  let max_height hint =
+    let rec loop current = function
+      | [] -> current
+      | hd :: tl -> loop (max hd current) tl
+    in
+    loop (2. *. half_hint_size) (List.map (fun (_,t) -> t#text_height) hint)
+  in
+  let total_width hint =
+    let n = float_of_int(List.length hint) in
+    let n_mone = n -. 1.0 in
+    List.fold_left ( +. ) 0.0 (List.map (fun (_,t) -> t#text_width) hint)
+    +. n_mone *. (2.0 *. half_hint_size +. sep2)
+    +. n *. sep1
+  in
+  let spread hint =
+    let y = ~-. (3.0 *. max_height hint /. 2.0) in
+    let w = total_width hint /. 2.0 in
+    let rec loop x = function
+      | [] -> ()
+      | (r, t) :: tl ->
+        r#set [
+          `X1(x -. half_hint_size);
+          `Y1(y -. half_hint_size);
+          `X2(x +. half_hint_size);
+          `Y2(y +. half_hint_size);
+        ];
+        t#set [ `X(x+.sep1); `Y(y) ];
+        loop (x +. sep1 +. 2.0 *. half_hint_size +. sep2 +. t#text_width) tl
+    in
+    loop (~-. w) hint
+  in
   object(self)
     inherit GnoCanvas.group group#as_group
+    val mutable hint = []
     method set_chart c =
       let name = Chart.(List.map (fun s -> s.Series.name) c.series) in
-      ()
+      let iname =
+        name
+        |> Array.of_list
+        |> Array.mapi (fun i s -> (i,s))
+        |> Array.to_list
+      in
+      List.iter (fun i -> i#destroy()) self#get_items;
+      hint <- List.map make_hint iname;
+      spread hint
+
+    method update_position =
+      let (x, y) =
+        group#canvas#window_to_world
+          ~winx:(float_of_int(group#canvas#width / 2))
+          ~winy:(float_of_int(group#canvas#height))
+      in
+      self#set [`X(x); `Y(y) ];
+
+    initializer
+      ignore [
+        group#canvas#misc#connect#size_allocate
+          ~callback:(fun _ -> self#update_position);
+      ]
+
+
   end
 
 let legend parent =
@@ -296,9 +375,9 @@ class chart gnome_canvas =
     method set_chart c =
       _chart <- c;
       _title#set_chart c;
+      _legend#set_chart c;
       self#redraw
     initializer
-      ignore(bbox _title);
       self#misc#modify_bg [
         `NORMAL, `WHITE;
       ];

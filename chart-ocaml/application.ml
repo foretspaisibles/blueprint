@@ -27,8 +27,24 @@ let chart_temperature = Chart.{
       Axis.make ~title:"Temperature (°C)" ();
     tooltip = Some(Tooltip.(value_suffix "°C"));
     legend = Some(Legend.{ position = Bottom; });
-    series = [];
-  }
+    series = Series.[{
+        name = "Tokyo";
+        style = Style.Line;
+        data = Data.Series [| 7.0; 6.9; 9.5; 14.5; 18.2; 21.5; 25.2; 26.5; 23.3; 18.3; 13.9; 9.6 |];
+      }; {
+         name = "New York";
+         style = Style.Line;
+         data = Data.Series [| -0.2; 0.8; 5.7; 11.3; 17.0; 22.0; 24.8; 24.1; 20.1; 14.1; 8.6; 2.5 |];
+       }; {
+         name = "Berlin";
+         style = Style.Line;
+         data = Data.Series [| -0.9; 0.6; 3.5; 8.4; 13.5; 17.0; 18.6; 17.9; 14.3; 9.0; 3.9; 1.0 |];
+       }; {
+         name = "London";
+         style = Style.Line;
+         data = Data.Series [| 3.9; 4.2; 5.7; 8.5; 11.9; 15.2; 17.0; 16.6; 14.2; 10.3; 6.6; 4.8 |];
+  }]
+}
 
 let mainwindow () =
   let window = GWindow.window ~width:320 ~height:240 ~title:"Test OCaml charts" () in
