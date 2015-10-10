@@ -11,6 +11,23 @@
    are also available at
    http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt *)
 
+let maybe_do f = function
+  | Some(x) -> f x
+  | None -> ()
+
+let maybe_map f = function
+  | Some(x) -> Some(f x)
+  | None -> None
+
+let maybe_filtermap f lst =
+  List.fold_right
+    (fun x acc -> match f x with Some(y) -> y :: acc | None -> acc)
+    lst
+    []
+
+let maybe_filter lst =
+  maybe_filtermap (fun x -> x) lst
+
 module Messages =
 struct
   let empty_chart () =
@@ -27,10 +44,71 @@ let dummy = Chart.{
     series = [];
   }
 
-let maybe_do f = function
-  | Some(x) -> f x
-  | None -> ()
+let palette_data = [
+  "Blue", [|
+    081, 130, 188;
+    154, 198, 227;
+    000, 053, 123;
+    082, 169, 222;
+    001, 005, 017;
+    000, 091, 164;
+  |];
 
+  "Brown", [|
+    165, 127, 091;
+    212, 198, 153;
+    080, 055, 035;
+    196, 161, 105;
+    041, 013, 000;
+    141, 079, 038;
+  |];
+
+  "Gray", [|
+    134, 134, 134;
+    203, 205, 202;
+    061, 061, 061;
+    159, 159, 159;
+    001, 001, 001;
+    237, 237, 237;
+  |];
+
+  "Green", [|
+    020, 123, 054;
+    150, 201, 134;
+    000, 062, 025;
+    079, 177, 078;
+    000, 013, 003;
+    000, 098, 028;
+  |];
+
+  "Spectrum", [|
+    038, 105, 160;
+    082, 172, 085;
+    249, 177, 059;
+    225, 038, 055;
+    142, 169, 142;
+    144, 146, 145;
+  |];
+]
+
+class palette _name =
+  object
+    val name = _name
+    val colors = List.assoc _name palette_data
+
+    method get_as_string i =
+      let (r,g,b) = colors.(i mod Array.length colors) in
+      Printf.sprintf "#%02x%02x%02x" r g b
+  end
+
+let palette name =
+  new palette name
+
+let dot ?x ?y ?(text = "\xe2\x9d\x96") ?size ?fill_color ?(props = []) parent =
+  let actual_props =
+    props @ maybe_filter [ maybe_map (fun s -> `FILL_COLOR(s)) fill_color]
+  in
+  GnoCanvas.text ?x ?y ?size ~text ~anchor:`CENTER ~props:actual_props parent
 
 class empty group =
   object(self)
@@ -78,6 +156,12 @@ class title group =
     inherit GnoCanvas.group group#as_group
     val _box = GnoCanvas.rect
         ~fill_color:"red" group
+    val _hotspot =
+      dot ~x:0.0 ~y:0.0 ~fill_color:"blue" ~size:40_000 group
+    val _cross1 =
+      GnoCanvas.line ~fill_color:"yellow" ~points:[| -20.0; 0.0; 20.0; 0.0 |] group
+    val _cross2 =
+      GnoCanvas.line ~fill_color:"yellow" ~points:[| 0.0; -20.0; 0.0; 20.0 |] group
     val _title =
       GnoCanvas.text
         ~props:[
@@ -132,10 +216,10 @@ class title group =
       in
       _title#set [ `X(x); `Y(y) ];
       _subtitle#set [ `X(x); `Y(y +. 1.20*. _title#text_height) ];
-      _box#set (bounds_as_props self#bounds);
+      _box#set (bounds_as_props self#get_bounds);
 
     initializer
-      _box#hide();
+      _box#show();
       ignore [
         group#canvas#misc#connect#size_allocate
           ~callback:(fun _ -> self#update_position);
@@ -148,6 +232,18 @@ let title parent =
   let answer = new title group in
   answer
 
+class legend group =
+  object(self)
+    inherit GnoCanvas.group group#as_group
+    method set_chart c =
+      let name = Chart.(List.map (fun s -> s.Series.name) c.series) in
+      ()
+  end
+
+let legend parent =
+  let group = GnoCanvas.group parent in
+  let answer = new legend group in
+  answer
 
 
 let render chart (group : #GnoCanvas.group) =
@@ -160,6 +256,7 @@ class chart gnome_canvas =
     inherit GObj.widget canvas#as_widget
     val mutable _chart = dummy
     val _title = title group
+    val _legend = legend group
     val _empty = empty group
     method private redraw =
       if _chart == dummy then
