@@ -64,9 +64,6 @@ let mainwindow () =
   let _ =   window#connect#destroy ~callback:Main.quit in
   window#add_accel_group accel_group;
   window#show ();
-  gchart#misc#modify_bg [
-    `NORMAL, `WHITE;
-  ];
   window
 
 let main () =

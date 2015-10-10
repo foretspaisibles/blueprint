@@ -27,6 +27,11 @@ let dummy = Chart.{
     series = [];
   }
 
+let maybe_do f = function
+  | Some(x) -> f x
+  | None -> ()
+
+
 class empty group =
   object(self)
     inherit GnoCanvas.group group#as_group
@@ -61,9 +66,20 @@ let empty parent =
   answer
 
 class title group =
+  let bounds_as_props bounds =
+    [
+      `X1(bounds.(0));
+      `Y1(bounds.(1));
+      `X2(bounds.(2));
+      `Y2(bounds.(3));
+    ]
+  in
   object(self)
     inherit GnoCanvas.group group#as_group
-    val _title = GnoCanvas.text
+    val _box = GnoCanvas.rect
+        ~fill_color:"red" group
+    val _title =
+      GnoCanvas.text
         ~props:[
           `FILL_COLOR("black");
           `ANCHOR(`NORTH);
@@ -71,7 +87,6 @@ class title group =
           `SIZE_POINTS(20.0);
         ]
         group
-
     val _subtitle = GnoCanvas.text
         ~props:[
           `FILL_COLOR("gray");
@@ -81,11 +96,33 @@ class title group =
         ]
         group
 
-    method set_title text =
+    method bounds =
+      let title_bounds = _title#get_bounds in
+      let subtitle_bounds = _subtitle#get_bounds in
+      [|
+        min title_bounds.(0) subtitle_bounds.(0);
+        min title_bounds.(1) subtitle_bounds.(1);
+        max title_bounds.(2) subtitle_bounds.(2);
+        max title_bounds.(3) subtitle_bounds.(3);
+      |]
+
+    method width =
+      let bounds = self#bounds in
+      abs_float(bounds.(0) -. bounds.(1))
+
+    method height =
+      let bounds = self#bounds in
+      abs_float(bounds.(2) -. bounds.(3))
+
+    method private set_title text =
       _title#set [ `TEXT(text) ]
 
-    method set_subtitle text =
+    method private set_subtitle text =
       _subtitle#set [ `MARKUP("<i>"^text^"</i>") ]
+
+    method set_chart chart =
+      maybe_do self#set_title chart.Chart.title;
+      maybe_do self#set_subtitle chart.Chart.subtitle
 
     method update_position =
       let (x, y) =
@@ -94,11 +131,11 @@ class title group =
           ~winy:(0.0)
       in
       _title#set [ `X(x); `Y(y) ];
-      _subtitle#set [ `X(x); `Y(y +. 1.20*. _title#text_height) ]
+      _subtitle#set [ `X(x); `Y(y +. 1.20*. _title#text_height) ];
+      _box#set (bounds_as_props self#bounds);
+
     initializer
-      _title#reparent (self :> GnoCanvas.group);
-      _subtitle#reparent (self :> GnoCanvas.group);
-      self#update_position;
+      _box#hide();
       ignore [
         group#canvas#misc#connect#size_allocate
           ~callback:(fun _ -> self#update_position);
@@ -141,7 +178,12 @@ class chart gnome_canvas =
       _chart
     method set_chart c =
       _chart <- c;
+      _title#set_chart c;
       self#redraw
+    initializer
+      self#misc#modify_bg [
+        `NORMAL, `WHITE;
+      ];
   end
 
 let maybe_set_chart widget = function
