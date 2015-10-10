@@ -39,15 +39,45 @@ let mainwindow () =
   let accel_group = factory#accel_group in
   let file_menu = factory#add_submenu "File" in
 
+  let canvas =
+    GnoCanvas.canvas
+      ~aa:true
+      ~packing:(vbox#pack ~expand:true)
+      ()
+  in
+
+  let rectangle n =
+    let offset s =
+      float_of_int(n*10) +. s
+    in
+    GnoCanvas.rect
+      ~x1:(offset 0.0)
+      ~x2:(offset 50.0)
+      ~y1:(offset 0.0)
+      ~y2:(offset 50.0)
+      ~fill_color:"cadet blue"
+      canvas#root
+  in
+
+  let count = ref 0 in
+  let pack () =
+    ignore(rectangle !count);
+    incr count;
+  in
+
   (* File menu *)
   let factory = new GMenu.factory file_menu ~accel_group in
   let _ = factory#add_item "Quit" ~key:_Q ~callback: Main.quit in
 
   let _ = factory#add_item "Connect" ~key:_C
-      ~callback:(fun () -> print_endline "Connect!")
+      ~callback:(fun () -> pack();
+                  List.iter (fun item -> Printf.printf "OID %d\n" item#get_oid) canvas#root#get_items;
+                  print_endline "Connect!")
   in
-  let _ = factory#add_item "Disonnect" ~key:_D
-      ~callback:(fun () -> print_endline "Disconnect")
+  let _ = factory#add_item "Disconnect" ~key:_D
+      ~callback:(fun () ->
+          List.iter (fun item -> item#destroy ()) canvas#root#get_items;
+          print_endline "Disconnect")
   in
 
   (* Chart *)

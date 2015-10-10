@@ -21,13 +21,18 @@ let dummy = Chart.{
     series = [];
   }
 
+let render chart (group : #GnoCanvas.group) =
+  ()
+
 class group gtkgroup =
-  object
+  object(self)
     inherit GnoCanvas.group gtkgroup
     val mutable _chart = dummy
     method chart = _chart
     method set_chart newchart =
-      _chart <- newchart
+      _chart <- newchart;
+      List.iter (fun item -> item#destroy ()) self#get_items;
+      render newchart self
   end
 
 let maybe_set_chart s = function
